@@ -358,6 +358,7 @@ CREATE POLICY "Anyone can view tracks" ON public.tracks FOR SELECT USING (true);
 -- Team tracks policies
 DROP POLICY IF EXISTS "Team members can view team tracks" ON public.team_tracks;
 DROP POLICY IF EXISTS "Team admins can manage team tracks" ON public.team_tracks;
+DROP POLICY IF EXISTS "Team creators can manage team tracks" ON public.team_tracks;
 CREATE POLICY "Team creators can manage team tracks" ON public.team_tracks FOR ALL USING (
   team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
@@ -365,6 +366,7 @@ CREATE POLICY "Team creators can manage team tracks" ON public.team_tracks FOR A
 -- Race sessions policies
 DROP POLICY IF EXISTS "Team members can view race sessions" ON public.race_sessions;
 DROP POLICY IF EXISTS "Team admins can manage race sessions" ON public.race_sessions;
+DROP POLICY IF EXISTS "Team creators can manage race sessions" ON public.race_sessions;
 CREATE POLICY "Team creators can manage race sessions" ON public.race_sessions FOR ALL USING (
   team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
@@ -372,6 +374,7 @@ CREATE POLICY "Team creators can manage race sessions" ON public.race_sessions F
 -- Race results policies
 DROP POLICY IF EXISTS "Team members can view race results" ON public.race_results;
 DROP POLICY IF EXISTS "Team admins can manage race results" ON public.race_results;
+DROP POLICY IF EXISTS "Team creators can manage race results" ON public.race_results;
 CREATE POLICY "Team creators can manage race results" ON public.race_results FOR ALL USING (
   session_id IN (
     SELECT rs.id FROM public.race_sessions rs 
@@ -383,6 +386,7 @@ CREATE POLICY "Team creators can manage race results" ON public.race_results FOR
 -- Team invites policies
 DROP POLICY IF EXISTS "Team admins can view team invites" ON public.team_invites;
 DROP POLICY IF EXISTS "Team admins can manage invites" ON public.team_invites;
+DROP POLICY IF EXISTS "Team creators can manage invites" ON public.team_invites;
 CREATE POLICY "Team creators can manage invites" ON public.team_invites FOR ALL USING (
   team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
