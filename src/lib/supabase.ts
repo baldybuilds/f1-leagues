@@ -65,28 +65,37 @@ export type Database = {
         Row: {
           id: string
           team_id: string
-          inviter_id: string
+          invited_by: string
           invitee_email: string
-          status: 'pending' | 'accepted' | 'declined'
+          invite_code: string
+          status: 'pending' | 'accepted' | 'declined' | 'expired'
+          expires_at: string
           created_at: string
+          accepted_at: string | null
           updated_at: string
         }
         Insert: {
           id?: string
           team_id: string
-          inviter_id: string
+          invited_by: string
           invitee_email: string
-          status?: 'pending' | 'accepted' | 'declined'
+          invite_code?: string
+          status?: 'pending' | 'accepted' | 'declined' | 'expired'
+          expires_at?: string
           created_at?: string
+          accepted_at?: string | null
           updated_at?: string
         }
         Update: {
           id?: string
           team_id?: string
-          inviter_id?: string
+          invited_by?: string
           invitee_email?: string
-          status?: 'pending' | 'accepted' | 'declined'
+          invite_code?: string
+          status?: 'pending' | 'accepted' | 'declined' | 'expired'
+          expires_at?: string
           created_at?: string
+          accepted_at?: string | null
           updated_at?: string
         }
       }

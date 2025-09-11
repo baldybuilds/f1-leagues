@@ -1,10 +1,13 @@
 export interface TeamInvite {
   id: string
   team_id: string
-  inviter_id: string
+  invited_by: string
   invitee_email: string
-  status: 'pending' | 'accepted' | 'declined'
+  invite_code: string
+  status: 'pending' | 'accepted' | 'declined' | 'expired'
+  expires_at: string
   created_at: string
+  accepted_at: string | null
   updated_at: string
   // These will be joined/calculated fields
   team_name?: string
@@ -26,9 +29,9 @@ export interface InviteWithTeam extends TeamInvite {
   team: {
     id: string
     name: string
-    game: string
-    start_date: string
-    end_date: string
-    owner_id: string
+    game_version: string
+    season_start_date: string
+    season_end_date: string
+    created_by: string
   }
 }

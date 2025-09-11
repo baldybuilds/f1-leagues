@@ -69,11 +69,11 @@ export function InvitesList() {
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                   <div className="flex items-center gap-1">
                     <GameController size={14} />
-                    {invite.team.game}
+                    {invite.team.game_version}
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar size={14} />
-                    {format(new Date(invite.team.start_date), 'MMM dd')} - {format(new Date(invite.team.end_date), 'MMM dd, yyyy')}
+                    {format(new Date(invite.team.season_start_date), 'MMM dd')} - {format(new Date(invite.team.season_end_date), 'MMM dd, yyyy')}
                   </div>
                 </div>
               </div>

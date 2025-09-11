@@ -19,7 +19,14 @@ export function useInvites() {
         .from('team_invites')
         .select(`
           *,
-          team:teams(*)
+          team:teams(
+            id,
+            name,
+            game_version,
+            season_start_date,
+            season_end_date,
+            created_by
+          )
         `)
         .eq('invitee_email', user.email)
         .eq('status', 'pending')
@@ -57,7 +64,7 @@ export function useInvites() {
       .from('team_invites')
       .insert({
         team_id: teamId,
-        inviter_id: user.id,
+        invited_by: user.id,
         invitee_email: inviteeEmail.toLowerCase(),
         status: 'pending'
       })

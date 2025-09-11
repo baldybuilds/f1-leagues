@@ -3,7 +3,7 @@
 -- 
 -- This file contains all necessary SQL commands to set up the database:
 -- - Tables for users, teams, tracks, race results, and invites
--- - Row Level Security policies
+-- - Row Level Security policies (fixed circular references)
 -- - Functions for automatic points calculation
 -- - Triggers for data consistency
 -- - Indexes for performance
@@ -82,7 +82,7 @@ BEGIN
     ALTER TABLE public.team_members ADD COLUMN role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member'));
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_members' AND column_name='driver_name') THEN
-    ALTER TABLE public.team_members ADD COLUMN driver_name TEXT NOT NULL;
+    ALTER TABLE public.team_members ADD COLUMN driver_name TEXT NOT NULL DEFAULT 'Driver';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_members' AND column_name='team_name') THEN
     ALTER TABLE public.team_members ADD COLUMN team_name TEXT;
@@ -113,6 +113,8 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tracks' AND column_name='location') THEN
     ALTER TABLE public.tracks ADD COLUMN location TEXT NOT NULL DEFAULT '';
+    -- Update existing rows to have location = country if empty
+    UPDATE public.tracks SET location = country WHERE location = '' OR location IS NULL;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tracks' AND column_name='season') THEN
     ALTER TABLE public.tracks ADD COLUMN season INTEGER NOT NULL DEFAULT 2025;
@@ -195,7 +197,7 @@ CREATE TABLE IF NOT EXISTS public.race_results (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   session_id UUID REFERENCES public.race_sessions(id) ON DELETE CASCADE NOT NULL,
   team_member_id UUID REFERENCES public.team_members(id) ON DELETE CASCADE NOT NULL,
-  finishing_position INTEGER CHECK (finishing_position >= 1),
+  finishing_position INTEGER NOT NULL CHECK (finishing_position >= 1) DEFAULT 99,
   grid_position INTEGER CHECK (grid_position >= 1),
   fastest_lap BOOLEAN DEFAULT FALSE,
   pole_position BOOLEAN DEFAULT FALSE,
@@ -213,11 +215,7 @@ CREATE TABLE IF NOT EXISTS public.race_results (
 DO $$ 
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='race_results' AND column_name='finishing_position') THEN
-    ALTER TABLE public.race_results ADD COLUMN finishing_position INTEGER CHECK (finishing_position >= 1);
-    -- Update any existing null values to 99 (a safe default for unfinished positions)
-    UPDATE public.race_results SET finishing_position = 99 WHERE finishing_position IS NULL;
-    -- Now add the NOT NULL constraint
-    ALTER TABLE public.race_results ALTER COLUMN finishing_position SET NOT NULL;
+    ALTER TABLE public.race_results ADD COLUMN finishing_position INTEGER NOT NULL DEFAULT 99 CHECK (finishing_position >= 1);
   ELSE
     -- Handle existing column that might have null values
     UPDATE public.race_results SET finishing_position = 99 WHERE finishing_position IS NULL;
@@ -266,19 +264,40 @@ BEGIN
   END IF;
 END $$;
 
--- Team invites table
+-- Team invites table (FIXED: use invitee_email column name consistently)
 CREATE TABLE IF NOT EXISTS public.team_invites (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   team_id UUID REFERENCES public.teams(id) ON DELETE CASCADE NOT NULL,
   invited_by UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL,
-  email TEXT NOT NULL,
+  invitee_email TEXT NOT NULL,
   invite_code TEXT UNIQUE NOT NULL DEFAULT substring(md5(random()::text), 1, 12),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'expired')),
   expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days'),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   accepted_at TIMESTAMP WITH TIME ZONE,
-  UNIQUE(team_id, email)
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(team_id, invitee_email)
 );
+
+-- Fix the email column naming issue
+DO $$ 
+BEGIN
+  -- Check if old 'email' column exists and rename it to 'invitee_email'
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='email') 
+     AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='invitee_email') THEN
+    ALTER TABLE public.team_invites RENAME COLUMN email TO invitee_email;
+  END IF;
+  
+  -- If neither exists, add the correct column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='invitee_email') THEN
+    ALTER TABLE public.team_invites ADD COLUMN invitee_email TEXT NOT NULL DEFAULT '';
+  END IF;
+  
+  -- Add other missing columns
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='updated_at') THEN
+    ALTER TABLE public.team_invites ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+END $$;
 
 -- Championship standings view (calculated)
 CREATE OR REPLACE VIEW public.championship_standings AS
@@ -310,92 +329,112 @@ ALTER TABLE public.race_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.race_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_invites ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies
-
--- User profiles policies
+-- DROP ALL EXISTING POLICIES TO PREVENT DUPLICATES AND CIRCULAR REFERENCES
 DROP POLICY IF EXISTS "Users can view all profiles" ON public.user_profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.user_profiles;
 DROP POLICY IF EXISTS "Users can insert own profile" ON public.user_profiles;
-CREATE POLICY "Users can view all profiles" ON public.user_profiles FOR SELECT USING (true);
-CREATE POLICY "Users can update own profile" ON public.user_profiles FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Users can insert own profile" ON public.user_profiles FOR INSERT WITH CHECK (auth.uid() = id);
-
--- Teams policies
 DROP POLICY IF EXISTS "Anyone can view teams they're a member of" ON public.teams;
 DROP POLICY IF EXISTS "Team creators can update their teams" ON public.teams;
 DROP POLICY IF EXISTS "Authenticated users can create teams" ON public.teams;
 DROP POLICY IF EXISTS "Team creators can delete teams" ON public.teams;
 DROP POLICY IF EXISTS "Team creators can view their teams" ON public.teams;
-
--- Simplified policies to avoid circular references
-CREATE POLICY "Team creators can view their teams" ON public.teams FOR SELECT USING (created_by = auth.uid());
-CREATE POLICY "Team creators can update their teams" ON public.teams FOR UPDATE USING (created_by = auth.uid());
-CREATE POLICY "Authenticated users can create teams" ON public.teams FOR INSERT WITH CHECK (auth.uid() = created_by);
-CREATE POLICY "Team creators can delete teams" ON public.teams FOR DELETE USING (created_by = auth.uid());
-
--- Team members policies
 DROP POLICY IF EXISTS "Team members can view team memberships" ON public.team_members;
 DROP POLICY IF EXISTS "Team admins can manage memberships" ON public.team_members;
 DROP POLICY IF EXISTS "Users can join teams" ON public.team_members;
 DROP POLICY IF EXISTS "Team creators can manage all memberships" ON public.team_members;
 DROP POLICY IF EXISTS "Users can view own membership" ON public.team_members;
 DROP POLICY IF EXISTS "Members can view team memberships" ON public.team_members;
-
--- Split policies to avoid circular references
-CREATE POLICY "Users can view own membership" ON public.team_members FOR SELECT USING (user_id = auth.uid());
-CREATE POLICY "Members can view team memberships" ON public.team_members FOR SELECT USING (
-  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
-);
-CREATE POLICY "Team creators can manage all memberships" ON public.team_members FOR ALL USING (
-  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
-);
-CREATE POLICY "Users can join teams" ON public.team_members FOR INSERT WITH CHECK (user_id = auth.uid());
-
--- Tracks policies
 DROP POLICY IF EXISTS "Anyone can view tracks" ON public.tracks;
-CREATE POLICY "Anyone can view tracks" ON public.tracks FOR SELECT USING (true);
-
--- Team tracks policies
 DROP POLICY IF EXISTS "Team members can view team tracks" ON public.team_tracks;
 DROP POLICY IF EXISTS "Team admins can manage team tracks" ON public.team_tracks;
 DROP POLICY IF EXISTS "Team creators can manage team tracks" ON public.team_tracks;
-CREATE POLICY "Team creators can manage team tracks" ON public.team_tracks FOR ALL USING (
-  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
-);
-
--- Race sessions policies
 DROP POLICY IF EXISTS "Team members can view race sessions" ON public.race_sessions;
 DROP POLICY IF EXISTS "Team admins can manage race sessions" ON public.race_sessions;
 DROP POLICY IF EXISTS "Team creators can manage race sessions" ON public.race_sessions;
-CREATE POLICY "Team creators can manage race sessions" ON public.race_sessions FOR ALL USING (
-  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
-);
-
--- Race results policies
 DROP POLICY IF EXISTS "Team members can view race results" ON public.race_results;
 DROP POLICY IF EXISTS "Team admins can manage race results" ON public.race_results;
 DROP POLICY IF EXISTS "Team creators can manage race results" ON public.race_results;
-CREATE POLICY "Team creators can manage race results" ON public.race_results FOR ALL USING (
+DROP POLICY IF EXISTS "Team admins can view team invites" ON public.team_invites;
+DROP POLICY IF EXISTS "Team admins can manage invites" ON public.team_invites;
+DROP POLICY IF EXISTS "Team creators can manage invites" ON public.team_invites;
+
+-- NEW SIMPLIFIED RLS POLICIES WITHOUT CIRCULAR REFERENCES
+
+-- User profiles policies
+CREATE POLICY "profile_view_all" ON public.user_profiles FOR SELECT USING (true);
+CREATE POLICY "profile_update_own" ON public.user_profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "profile_insert_own" ON public.user_profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- Teams policies - SIMPLIFIED to avoid circular references
+CREATE POLICY "teams_select_own" ON public.teams FOR SELECT USING (
+  created_by = auth.uid() OR 
+  id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
+);
+CREATE POLICY "teams_insert_own" ON public.teams FOR INSERT WITH CHECK (auth.uid() = created_by);
+CREATE POLICY "teams_update_creator" ON public.teams FOR UPDATE USING (created_by = auth.uid());
+CREATE POLICY "teams_delete_creator" ON public.teams FOR DELETE USING (created_by = auth.uid());
+
+-- Team members policies - SIMPLIFIED to avoid circular references
+CREATE POLICY "members_select_related" ON public.team_members FOR SELECT USING (
+  user_id = auth.uid() OR
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
+);
+CREATE POLICY "members_insert_join" ON public.team_members FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "members_update_admin" ON public.team_members FOR UPDATE USING (
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
+);
+CREATE POLICY "members_delete_admin" ON public.team_members FOR DELETE USING (
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
+);
+
+-- Tracks policies
+CREATE POLICY "tracks_view_all" ON public.tracks FOR SELECT USING (true);
+
+-- Team tracks policies
+CREATE POLICY "team_tracks_access" ON public.team_tracks FOR ALL USING (
+  team_id IN (
+    SELECT id FROM public.teams WHERE created_by = auth.uid()
+    UNION
+    SELECT team_id FROM public.team_members WHERE user_id = auth.uid()
+  )
+);
+
+-- Race sessions policies
+CREATE POLICY "race_sessions_access" ON public.race_sessions FOR ALL USING (
+  team_id IN (
+    SELECT id FROM public.teams WHERE created_by = auth.uid()
+    UNION
+    SELECT team_id FROM public.team_members WHERE user_id = auth.uid()
+  )
+);
+
+-- Race results policies
+CREATE POLICY "race_results_access" ON public.race_results FOR ALL USING (
   session_id IN (
     SELECT rs.id FROM public.race_sessions rs 
-    JOIN public.teams t ON rs.team_id = t.id 
-    WHERE t.created_by = auth.uid()
+    WHERE rs.team_id IN (
+      SELECT id FROM public.teams WHERE created_by = auth.uid()
+      UNION
+      SELECT team_id FROM public.team_members WHERE user_id = auth.uid()
+    )
   )
 );
 
 -- Team invites policies
-DROP POLICY IF EXISTS "Team admins can view team invites" ON public.team_invites;
-DROP POLICY IF EXISTS "Team admins can manage invites" ON public.team_invites;
-DROP POLICY IF EXISTS "Team creators can manage invites" ON public.team_invites;
-CREATE POLICY "Team creators can manage invites" ON public.team_invites FOR ALL USING (
+CREATE POLICY "invites_view_received" ON public.team_invites FOR SELECT USING (
+  invitee_email = (SELECT email FROM auth.users WHERE id = auth.uid()) OR
   team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
-
--- Note: Removed circular reference policy for team members viewing teams
--- Team members can access team data through application-level joins instead of RLS policies
-
--- Note: Removed member access policies to prevent circular references
--- Team members can access data through application-level joins with proper filtering
+CREATE POLICY "invites_manage_creator" ON public.team_invites FOR INSERT WITH CHECK (
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
+);
+CREATE POLICY "invites_update_creator_or_invitee" ON public.team_invites FOR UPDATE USING (
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()) OR
+  invitee_email = (SELECT email FROM auth.users WHERE id = auth.uid())
+);
+CREATE POLICY "invites_delete_creator" ON public.team_invites FOR DELETE USING (
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
+);
 
 -- Functions for common operations
 
@@ -510,11 +549,13 @@ DROP TRIGGER IF EXISTS update_user_profiles_updated_at ON public.user_profiles;
 DROP TRIGGER IF EXISTS update_teams_updated_at ON public.teams;
 DROP TRIGGER IF EXISTS update_race_sessions_updated_at ON public.race_sessions;
 DROP TRIGGER IF EXISTS update_race_results_updated_at ON public.race_results;
+DROP TRIGGER IF EXISTS update_team_invites_updated_at ON public.team_invites;
 
 CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON public.user_profiles FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON public.teams FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 CREATE TRIGGER update_race_sessions_updated_at BEFORE UPDATE ON public.race_sessions FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 CREATE TRIGGER update_race_results_updated_at BEFORE UPDATE ON public.race_results FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+CREATE TRIGGER update_team_invites_updated_at BEFORE UPDATE ON public.team_invites FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 
 -- App-level functions to handle member access (avoiding RLS circular references)
 
@@ -573,6 +614,7 @@ CREATE INDEX IF NOT EXISTS idx_race_results_session_id ON public.race_results(se
 CREATE INDEX IF NOT EXISTS idx_race_results_team_member_id ON public.race_results(team_member_id);
 CREATE INDEX IF NOT EXISTS idx_team_invites_team_id ON public.team_invites(team_id);
 CREATE INDEX IF NOT EXISTS idx_team_invites_invite_code ON public.team_invites(invite_code);
+CREATE INDEX IF NOT EXISTS idx_team_invites_invitee_email ON public.team_invites(invitee_email);
 CREATE INDEX IF NOT EXISTS idx_teams_invite_code ON public.teams(invite_code);
 
 -- Grant necessary permissions
