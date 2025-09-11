@@ -1,18 +1,17 @@
--- QualiPal F1 League Manager - Complete Database Schema
--- This file contains all the SQL queries needed to set up the database for the F1 league management system
+-- QualiPal F1 League Manager Database Schema
+-- Complete SQL setup for all required tables
 
--- Enable Row Level Security (RLS) for all tables
--- This ensures users can only access data they're authorized to see
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- ============================================================================
--- TABLES
--- ============================================================================
+-- Enable Row Level Security
+ALTER DATABASE postgres SET "app.jwt_secret" TO 'your-jwt-secret-here';
 
--- Users table (extends Supabase auth.users)
-CREATE TABLE IF NOT EXISTS public.users (
+-- User profiles table (extends Supabase auth.users)
+CREATE TABLE IF NOT EXISTS public.user_profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  email TEXT NOT NULL,
-  full_name TEXT,
+  username TEXT UNIQUE NOT NULL,
+  display_name TEXT,
   avatar_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -20,287 +19,354 @@ CREATE TABLE IF NOT EXISTS public.users (
 
 -- Teams/Leagues table
 CREATE TABLE IF NOT EXISTS public.teams (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name TEXT NOT NULL,
-  game TEXT NOT NULL CHECK (game IN ('F1 24', 'F1 25')),
-  start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
-  tracks TEXT[] NOT NULL, -- Array of track names
-  created_by UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+  description TEXT,
+  game_version TEXT NOT NULL CHECK (game_version IN ('F1 24', 'F1 25')),
+  season_start_date DATE NOT NULL,
+  season_end_date DATE NOT NULL,
+  created_by UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL,
+  invite_code TEXT UNIQUE NOT NULL DEFAULT substring(md5(random()::text), 1, 8),
+  scoring_system JSONB DEFAULT '{"win": 25, "second": 18, "third": 15, "fourth": 12, "fifth": 10, "sixth": 8, "seventh": 6, "eighth": 4, "ninth": 2, "tenth": 1}'::jsonb,
+  points_for_fastest_lap INTEGER DEFAULT 1,
+  points_for_pole_position INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  -- League settings
-  points_system JSONB DEFAULT '{
-    "1": 25, "2": 18, "3": 15, "4": 12, "5": 10,
-    "6": 8, "7": 6, "8": 4, "9": 2, "10": 1
-  }'::jsonb,
-  scoring_rules JSONB DEFAULT '{
-    "fastest_lap_point": true,
-    "sprint_race_points": true,
-    "pole_position_point": false
-  }'::jsonb
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Team invitations
-CREATE TABLE IF NOT EXISTS public.team_invites (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  team_id UUID REFERENCES public.teams(id) ON DELETE CASCADE NOT NULL,
-  invited_by UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
-  email TEXT NOT NULL,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days'),
-  UNIQUE(team_id, email)
-);
-
--- Team members (users who have joined teams)
+-- Team members table (for invites and memberships)
 CREATE TABLE IF NOT EXISTS public.team_members (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   team_id UUID REFERENCES public.teams(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
-  role TEXT DEFAULT 'member' CHECK (role IN ('admin', 'member')),
-  driver_name TEXT NOT NULL, -- In-game driver name
+  user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+  driver_name TEXT NOT NULL,
+  team_name TEXT,
+  car_number INTEGER CHECK (car_number >= 1 AND car_number <= 99),
   joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(team_id, user_id)
+  UNIQUE(team_id, user_id),
+  UNIQUE(team_id, car_number)
 );
 
--- Race results for each track in each team
-CREATE TABLE IF NOT EXISTS public.race_results (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  team_id UUID REFERENCES public.teams(id) ON DELETE CASCADE NOT NULL,
-  track_name TEXT NOT NULL,
-  member_id UUID REFERENCES public.team_members(id) ON DELETE CASCADE NOT NULL,
-  position INTEGER NOT NULL CHECK (position > 0),
-  points INTEGER DEFAULT 0,
-  fastest_lap BOOLEAN DEFAULT FALSE,
-  pole_position BOOLEAN DEFAULT FALSE,
-  dnf BOOLEAN DEFAULT FALSE,
-  race_time INTERVAL, -- Race completion time
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(team_id, track_name, member_id)
-);
-
--- Driver performance analytics
-CREATE TABLE IF NOT EXISTS public.driver_analytics (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  member_id UUID REFERENCES public.team_members(id) ON DELETE CASCADE NOT NULL,
-  team_id UUID REFERENCES public.teams(id) ON DELETE CASCADE NOT NULL,
-  track_name TEXT NOT NULL,
-  qualifying_position INTEGER,
-  race_position INTEGER,
-  grid_penalty INTEGER DEFAULT 0,
-  sectors JSONB, -- Sector times {"sector1": "00:23.456", "sector2": "00:45.123", "sector3": "00:34.789"}
-  telemetry_data JSONB, -- Additional telemetry if needed
-  consistency_rating DECIMAL(3,1), -- 0.0 to 10.0 rating
-  pace_rating DECIMAL(3,1), -- 0.0 to 10.0 rating
+-- F1 2025 Tracks data
+CREATE TABLE IF NOT EXISTS public.tracks (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name TEXT NOT NULL,
+  country TEXT NOT NULL,
+  circuit_length DECIMAL(5,3),
+  lap_record TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- ============================================================================
--- INDEXES
--- ============================================================================
+-- Insert F1 2025 tracks
+INSERT INTO public.tracks (name, country, circuit_length, lap_record) VALUES
+('Bahrain International Circuit', 'Bahrain', 5.412, '1:31.447'),
+('Jeddah Corniche Circuit', 'Saudi Arabia', 6.174, '1:30.734'),
+('Albert Park Circuit', 'Australia', 5.278, '1:20.260'),
+('Suzuka International Racing Course', 'Japan', 5.807, '1:30.983'),
+('Shanghai International Circuit', 'China', 5.451, '1:32.238'),
+('Miami International Autodrome', 'United States', 5.410, '1:29.708'),
+('Autodromo Enzo e Dino Ferrari', 'Italy', 4.909, '1:15.484'),
+('Circuit de Monaco', 'Monaco', 3.337, '1:12.909'),
+('Circuit Gilles Villeneuve', 'Canada', 4.361, '1:13.078'),
+('Circuit de Barcelona-Catalunya', 'Spain', 4.675, '1:16.330'),
+('Red Bull Ring', 'Austria', 4.318, '1:05.619'),
+('Silverstone Circuit', 'United Kingdom', 5.891, '1:27.097'),
+('Hungaroring', 'Hungary', 4.381, '1:16.627'),
+('Circuit de Spa-Francorchamps', 'Belgium', 7.004, '1:41.252'),
+('Circuit Park Zandvoort', 'Netherlands', 4.259, '1:11.097'),
+('Autodromo Nazionale di Monza', 'Italy', 5.793, '1:21.046'),
+('Baku City Circuit', 'Azerbaijan', 6.003, '1:43.009'),
+('Marina Bay Street Circuit', 'Singapore', 5.063, '1:35.867'),
+('Circuit of the Americas', 'United States', 5.513, '1:36.169'),
+('Autodromo Hermanos Rodriguez', 'Mexico', 4.304, '1:17.774'),
+('Autodromo Jose Carlos Pace', 'Brazil', 4.309, '1:10.540'),
+('Las Vegas Street Circuit', 'United States', 6.201, '1:35.490'),
+('Losail International Circuit', 'Qatar', 5.380, '1:24.319'),
+('Yas Marina Circuit', 'United Arab Emirates', 5.281, '1:26.103')
+ON CONFLICT DO NOTHING;
 
--- Performance indexes for faster queries
-CREATE INDEX IF NOT EXISTS idx_teams_created_by ON public.teams(created_by);
-CREATE INDEX IF NOT EXISTS idx_team_invites_team_id ON public.team_invites(team_id);
-CREATE INDEX IF NOT EXISTS idx_team_invites_email ON public.team_invites(email);
-CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON public.team_members(team_id);
-CREATE INDEX IF NOT EXISTS idx_team_members_user_id ON public.team_members(user_id);
-CREATE INDEX IF NOT EXISTS idx_race_results_team_id ON public.race_results(team_id);
-CREATE INDEX IF NOT EXISTS idx_race_results_member_id ON public.race_results(member_id);
-CREATE INDEX IF NOT EXISTS idx_race_results_track ON public.race_results(team_id, track_name);
-CREATE INDEX IF NOT EXISTS idx_driver_analytics_member_id ON public.driver_analytics(member_id);
-CREATE INDEX IF NOT EXISTS idx_driver_analytics_team_track ON public.driver_analytics(team_id, track_name);
+-- Team tracks (selected tracks for each team/league)
+CREATE TABLE IF NOT EXISTS public.team_tracks (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  team_id UUID REFERENCES public.teams(id) ON DELETE CASCADE NOT NULL,
+  track_id UUID REFERENCES public.tracks(id) ON DELETE CASCADE NOT NULL,
+  race_order INTEGER NOT NULL,
+  race_date DATE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(team_id, track_id),
+  UNIQUE(team_id, race_order)
+);
 
--- ============================================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
--- ============================================================================
+-- Race sessions table
+CREATE TABLE IF NOT EXISTS public.race_sessions (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  team_id UUID REFERENCES public.teams(id) ON DELETE CASCADE NOT NULL,
+  track_id UUID REFERENCES public.tracks(id) ON DELETE CASCADE NOT NULL,
+  session_type TEXT NOT NULL CHECK (session_type IN ('practice_1', 'practice_2', 'practice_3', 'qualifying', 'sprint_qualifying', 'sprint_race', 'race')),
+  session_date TIMESTAMP WITH TIME ZONE,
+  weather_conditions TEXT,
+  completed BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(team_id, track_id, session_type)
+);
 
--- Enable RLS on all tables
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+-- Race results table
+CREATE TABLE IF NOT EXISTS public.race_results (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  session_id UUID REFERENCES public.race_sessions(id) ON DELETE CASCADE NOT NULL,
+  team_member_id UUID REFERENCES public.team_members(id) ON DELETE CASCADE NOT NULL,
+  finishing_position INTEGER NOT NULL CHECK (finishing_position >= 1),
+  grid_position INTEGER CHECK (grid_position >= 1),
+  fastest_lap BOOLEAN DEFAULT FALSE,
+  pole_position BOOLEAN DEFAULT FALSE,
+  lap_time TEXT,
+  points_earned INTEGER DEFAULT 0,
+  dnf BOOLEAN DEFAULT FALSE,
+  dnf_reason TEXT,
+  penalties TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(session_id, team_member_id),
+  UNIQUE(session_id, finishing_position)
+);
+
+-- Team invites table
+CREATE TABLE IF NOT EXISTS public.team_invites (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  team_id UUID REFERENCES public.teams(id) ON DELETE CASCADE NOT NULL,
+  invited_by UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL,
+  email TEXT NOT NULL,
+  invite_code TEXT UNIQUE NOT NULL DEFAULT substring(md5(random()::text), 1, 12),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'expired')),
+  expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days'),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  accepted_at TIMESTAMP WITH TIME ZONE,
+  UNIQUE(team_id, email)
+);
+
+-- Championship standings view (calculated)
+CREATE OR REPLACE VIEW public.championship_standings AS
+SELECT 
+  tm.id as team_member_id,
+  tm.team_id,
+  tm.driver_name,
+  tm.team_name,
+  tm.car_number,
+  COALESCE(SUM(rr.points_earned), 0) as total_points,
+  COUNT(CASE WHEN rs.session_type = 'race' AND rr.finishing_position IS NOT NULL THEN 1 END) as races_completed,
+  COUNT(CASE WHEN rs.session_type = 'race' AND rr.finishing_position = 1 THEN 1 END) as wins,
+  COUNT(CASE WHEN rs.session_type = 'race' AND rr.finishing_position <= 3 THEN 1 END) as podiums,
+  COUNT(CASE WHEN rr.fastest_lap = true THEN 1 END) as fastest_laps,
+  COUNT(CASE WHEN rr.pole_position = true THEN 1 END) as pole_positions,
+  ROW_NUMBER() OVER (PARTITION BY tm.team_id ORDER BY COALESCE(SUM(rr.points_earned), 0) DESC, COUNT(CASE WHEN rs.session_type = 'race' AND rr.finishing_position = 1 THEN 1 END) DESC) as championship_position
+FROM public.team_members tm
+LEFT JOIN public.race_results rr ON tm.id = rr.team_member_id
+LEFT JOIN public.race_sessions rs ON rr.session_id = rs.id
+GROUP BY tm.id, tm.team_id, tm.driver_name, tm.team_name, tm.car_number;
+
+-- Enable Row Level Security on all tables
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.teams ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.team_invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tracks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.team_tracks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.race_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.race_results ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.driver_analytics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.team_invites ENABLE ROW LEVEL SECURITY;
 
--- Users policies
-CREATE POLICY "Users can view own profile" ON public.users
-  FOR SELECT USING (auth.uid() = id);
+-- RLS Policies
 
-CREATE POLICY "Users can update own profile" ON public.users
-  FOR UPDATE USING (auth.uid() = id);
-
-CREATE POLICY "Users can insert own profile" ON public.users
-  FOR INSERT WITH CHECK (auth.uid() = id);
+-- User profiles policies
+CREATE POLICY "Users can view all profiles" ON public.user_profiles FOR SELECT USING (true);
+CREATE POLICY "Users can update own profile" ON public.user_profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can insert own profile" ON public.user_profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Teams policies
-CREATE POLICY "Users can view teams they're members of" ON public.teams
-  FOR SELECT USING (
-    auth.uid() = created_by OR
-    EXISTS (
-      SELECT 1 FROM public.team_members
-      WHERE team_id = teams.id AND user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Users can create teams" ON public.teams
-  FOR INSERT WITH CHECK (auth.uid() = created_by);
-
-CREATE POLICY "Team admins can update teams" ON public.teams
-  FOR UPDATE USING (
-    auth.uid() = created_by OR
-    EXISTS (
-      SELECT 1 FROM public.team_members
-      WHERE team_id = teams.id AND user_id = auth.uid() AND role = 'admin'
-    )
-  );
-
-CREATE POLICY "Team admins can delete teams" ON public.teams
-  FOR DELETE USING (auth.uid() = created_by);
-
--- Team invites policies
-CREATE POLICY "Users can view invites for their teams" ON public.team_invites
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.teams
-      WHERE id = team_id AND (
-        created_by = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM public.team_members
-          WHERE team_id = teams.id AND user_id = auth.uid() AND role = 'admin'
-        )
-      )
-    ) OR
-    EXISTS (
-      SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND email = team_invites.email
-    )
-  );
-
-CREATE POLICY "Team admins can create invites" ON public.team_invites
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.teams
-      WHERE id = team_id AND (
-        created_by = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM public.team_members
-          WHERE team_id = teams.id AND user_id = auth.uid() AND role = 'admin'
-        )
-      )
-    )
-  );
-
-CREATE POLICY "Invited users can update invite status" ON public.team_invites
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND email = team_invites.email
-    )
-  );
+CREATE POLICY "Anyone can view teams they're a member of" ON public.teams FOR SELECT USING (
+  id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
+);
+CREATE POLICY "Team creators can update their teams" ON public.teams FOR UPDATE USING (created_by = auth.uid());
+CREATE POLICY "Authenticated users can create teams" ON public.teams FOR INSERT WITH CHECK (auth.uid() = created_by);
+CREATE POLICY "Team admins can delete teams" ON public.teams FOR DELETE USING (
+  created_by = auth.uid() OR 
+  id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
+);
 
 -- Team members policies
-CREATE POLICY "Users can view team members of teams they're in" ON public.team_members
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.team_members tm
-      WHERE tm.team_id = team_members.team_id AND tm.user_id = auth.uid()
-    )
-  );
+CREATE POLICY "Team members can view team memberships" ON public.team_members FOR SELECT USING (
+  team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
+);
+CREATE POLICY "Team admins can manage memberships" ON public.team_members FOR ALL USING (
+  team_id IN (
+    SELECT t.id FROM public.teams t 
+    WHERE t.created_by = auth.uid() OR 
+    t.id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
+  )
+);
+CREATE POLICY "Users can join teams" ON public.team_members FOR INSERT WITH CHECK (user_id = auth.uid());
 
-CREATE POLICY "Users can join teams they're invited to" ON public.team_members
-  FOR INSERT WITH CHECK (
-    auth.uid() = user_id AND
-    EXISTS (
-      SELECT 1 FROM public.team_invites
-      WHERE team_id = team_members.team_id
-      AND email IN (SELECT email FROM public.users WHERE id = auth.uid())
-      AND status = 'accepted'
-    )
-  );
+-- Tracks policies
+CREATE POLICY "Anyone can view tracks" ON public.tracks FOR SELECT USING (true);
 
-CREATE POLICY "Team admins can manage members" ON public.team_members
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.teams
-      WHERE id = team_id AND (
-        created_by = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM public.team_members tm
-          WHERE tm.team_id = teams.id AND tm.user_id = auth.uid() AND tm.role = 'admin'
-        )
-      )
-    )
-  );
+-- Team tracks policies
+CREATE POLICY "Team members can view team tracks" ON public.team_tracks FOR SELECT USING (
+  team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
+);
+CREATE POLICY "Team admins can manage team tracks" ON public.team_tracks FOR ALL USING (
+  team_id IN (
+    SELECT t.id FROM public.teams t 
+    WHERE t.created_by = auth.uid() OR 
+    t.id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
+  )
+);
+
+-- Race sessions policies
+CREATE POLICY "Team members can view race sessions" ON public.race_sessions FOR SELECT USING (
+  team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
+);
+CREATE POLICY "Team admins can manage race sessions" ON public.race_sessions FOR ALL USING (
+  team_id IN (
+    SELECT t.id FROM public.teams t 
+    WHERE t.created_by = auth.uid() OR 
+    t.id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
+  )
+);
 
 -- Race results policies
-CREATE POLICY "Team members can view race results" ON public.race_results
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.team_members
-      WHERE team_id = race_results.team_id AND user_id = auth.uid()
-    )
-  );
+CREATE POLICY "Team members can view race results" ON public.race_results FOR SELECT USING (
+  session_id IN (
+    SELECT rs.id FROM public.race_sessions rs 
+    JOIN public.team_members tm ON rs.team_id = tm.team_id 
+    WHERE tm.user_id = auth.uid()
+  )
+);
+CREATE POLICY "Team admins can manage race results" ON public.race_results FOR ALL USING (
+  session_id IN (
+    SELECT rs.id FROM public.race_sessions rs 
+    JOIN public.teams t ON rs.team_id = t.id 
+    WHERE t.created_by = auth.uid() OR 
+    rs.team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
+  )
+);
 
-CREATE POLICY "Team admins can manage race results" ON public.race_results
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.teams
-      WHERE id = team_id AND (
-        created_by = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM public.team_members
-          WHERE team_id = teams.id AND user_id = auth.uid() AND role = 'admin'
-        )
-      )
-    )
-  );
+-- Team invites policies
+CREATE POLICY "Team admins can view team invites" ON public.team_invites FOR SELECT USING (
+  team_id IN (
+    SELECT t.id FROM public.teams t 
+    WHERE t.created_by = auth.uid() OR 
+    t.id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
+  )
+);
+CREATE POLICY "Team admins can manage invites" ON public.team_invites FOR ALL USING (
+  team_id IN (
+    SELECT t.id FROM public.teams t 
+    WHERE t.created_by = auth.uid() OR 
+    t.id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
+  )
+);
 
--- Driver analytics policies
-CREATE POLICY "Team members can view analytics" ON public.driver_analytics
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.team_members
-      WHERE team_id = driver_analytics.team_id AND user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Team admins can manage analytics" ON public.driver_analytics
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.teams
-      WHERE id = team_id AND (
-        created_by = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM public.team_members
-          WHERE team_id = teams.id AND user_id = auth.uid() AND role = 'admin'
-        )
-      )
-    )
-  );
-
--- ============================================================================
--- FUNCTIONS
--- ============================================================================
+-- Functions for common operations
 
 -- Function to automatically create user profile on signup
-CREATE OR REPLACE FUNCTION public.handle_new_user()
+CREATE OR REPLACE FUNCTION public.handle_new_user() 
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.users (id, email, full_name, avatar_url)
+  INSERT INTO public.user_profiles (id, username, display_name, avatar_url)
   VALUES (
-    new.id,
-    new.email,
-    new.raw_user_meta_data->>'full_name',
-    new.raw_user_meta_data->>'avatar_url'
+    NEW.id, 
+    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
+    COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(NEW.email, '@', 1)),
+    NEW.raw_user_meta_data->>'avatar_url'
   );
-  RETURN new;
+  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to update updated_at timestamp
+-- Trigger to create user profile on auth.users insert
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- Function to calculate points based on position and scoring system
+CREATE OR REPLACE FUNCTION public.calculate_points(
+  p_finishing_position INTEGER,
+  p_scoring_system JSONB,
+  p_fastest_lap BOOLEAN DEFAULT FALSE,
+  p_pole_position BOOLEAN DEFAULT FALSE,
+  p_fastest_lap_points INTEGER DEFAULT 1,
+  p_pole_points INTEGER DEFAULT 0
+) RETURNS INTEGER AS $$
+DECLARE
+  base_points INTEGER := 0;
+  bonus_points INTEGER := 0;
+BEGIN
+  -- Get base points from scoring system
+  CASE p_finishing_position
+    WHEN 1 THEN base_points := (p_scoring_system->>'win')::INTEGER;
+    WHEN 2 THEN base_points := (p_scoring_system->>'second')::INTEGER;
+    WHEN 3 THEN base_points := (p_scoring_system->>'third')::INTEGER;
+    WHEN 4 THEN base_points := (p_scoring_system->>'fourth')::INTEGER;
+    WHEN 5 THEN base_points := (p_scoring_system->>'fifth')::INTEGER;
+    WHEN 6 THEN base_points := (p_scoring_system->>'sixth')::INTEGER;
+    WHEN 7 THEN base_points := (p_scoring_system->>'seventh')::INTEGER;
+    WHEN 8 THEN base_points := (p_scoring_system->>'eighth')::INTEGER;
+    WHEN 9 THEN base_points := (p_scoring_system->>'ninth')::INTEGER;
+    WHEN 10 THEN base_points := (p_scoring_system->>'tenth')::INTEGER;
+    ELSE base_points := 0;
+  END CASE;
+  
+  -- Add bonus points
+  IF p_fastest_lap THEN
+    bonus_points := bonus_points + p_fastest_lap_points;
+  END IF;
+  
+  IF p_pole_position THEN
+    bonus_points := bonus_points + p_pole_points;
+  END IF;
+  
+  RETURN COALESCE(base_points, 0) + bonus_points;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to automatically calculate points on race result insert/update
+CREATE OR REPLACE FUNCTION public.auto_calculate_points() 
+RETURNS TRIGGER AS $$
+DECLARE
+  team_scoring JSONB;
+  team_fastest_lap_points INTEGER;
+  team_pole_points INTEGER;
+BEGIN
+  -- Get team scoring system
+  SELECT t.scoring_system, t.points_for_fastest_lap, t.points_for_pole_position
+  INTO team_scoring, team_fastest_lap_points, team_pole_points
+  FROM public.teams t
+  JOIN public.race_sessions rs ON t.id = rs.team_id
+  WHERE rs.id = NEW.session_id;
+  
+  -- Calculate points
+  NEW.points_earned := public.calculate_points(
+    NEW.finishing_position,
+    team_scoring,
+    NEW.fastest_lap,
+    NEW.pole_position,
+    team_fastest_lap_points,
+    team_pole_points
+  );
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to auto-calculate points
+DROP TRIGGER IF EXISTS auto_calculate_points_trigger ON public.race_results;
+CREATE TRIGGER auto_calculate_points_trigger
+  BEFORE INSERT OR UPDATE ON public.race_results
+  FOR EACH ROW EXECUTE PROCEDURE public.auto_calculate_points();
+
+-- Function to update timestamps
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -309,216 +375,25 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to calculate driver standings
-CREATE OR REPLACE FUNCTION public.get_driver_standings(team_uuid UUID)
-RETURNS TABLE (
-  member_id UUID,
-  driver_name TEXT,
-  total_points INTEGER,
-  races_completed INTEGER,
-  wins INTEGER,
-  podiums INTEGER,
-  fastest_laps INTEGER,
-  pole_positions INTEGER,
-  average_position DECIMAL
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    tm.id as member_id,
-    tm.driver_name,
-    COALESCE(SUM(rr.points), 0)::INTEGER as total_points,
-    COUNT(rr.id)::INTEGER as races_completed,
-    COUNT(CASE WHEN rr.position = 1 THEN 1 END)::INTEGER as wins,
-    COUNT(CASE WHEN rr.position <= 3 THEN 1 END)::INTEGER as podiums,
-    COUNT(CASE WHEN rr.fastest_lap = true THEN 1 END)::INTEGER as fastest_laps,
-    COUNT(CASE WHEN rr.pole_position = true THEN 1 END)::INTEGER as pole_positions,
-    COALESCE(AVG(rr.position), 0)::DECIMAL as average_position
-  FROM public.team_members tm
-  LEFT JOIN public.race_results rr ON tm.id = rr.member_id
-  WHERE tm.team_id = team_uuid
-  GROUP BY tm.id, tm.driver_name
-  ORDER BY total_points DESC, races_completed DESC, average_position ASC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Add update triggers for tables with updated_at columns
+CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON public.user_profiles FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON public.teams FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+CREATE TRIGGER update_race_sessions_updated_at BEFORE UPDATE ON public.race_sessions FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+CREATE TRIGGER update_race_results_updated_at BEFORE UPDATE ON public.race_results FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 
--- Function to get team race results for a specific track
-CREATE OR REPLACE FUNCTION public.get_race_results_by_track(team_uuid UUID, track TEXT)
-RETURNS TABLE (
-  member_id UUID,
-  driver_name TEXT,
-  position INTEGER,
-  points INTEGER,
-  fastest_lap BOOLEAN,
-  pole_position BOOLEAN,
-  dnf BOOLEAN,
-  race_time INTERVAL
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    tm.id as member_id,
-    tm.driver_name,
-    rr.position,
-    rr.points,
-    rr.fastest_lap,
-    rr.pole_position,
-    rr.dnf,
-    rr.race_time
-  FROM public.team_members tm
-  LEFT JOIN public.race_results rr ON tm.id = rr.member_id AND rr.track_name = track
-  WHERE tm.team_id = team_uuid
-  ORDER BY 
-    CASE WHEN rr.position IS NULL THEN 1 ELSE 0 END,
-    rr.position ASC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON public.team_members(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_user_id ON public.team_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_team_tracks_team_id ON public.team_tracks(team_id);
+CREATE INDEX IF NOT EXISTS idx_race_sessions_team_id ON public.race_sessions(team_id);
+CREATE INDEX IF NOT EXISTS idx_race_results_session_id ON public.race_results(session_id);
+CREATE INDEX IF NOT EXISTS idx_race_results_team_member_id ON public.race_results(team_member_id);
+CREATE INDEX IF NOT EXISTS idx_team_invites_team_id ON public.team_invites(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_invites_invite_code ON public.team_invites(invite_code);
+CREATE INDEX IF NOT EXISTS idx_teams_invite_code ON public.teams(invite_code);
 
--- ============================================================================
--- TRIGGERS
--- ============================================================================
-
--- Trigger to create user profile on signup
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- Triggers to update updated_at timestamps
-DROP TRIGGER IF EXISTS update_users_updated_at ON public.users;
-CREATE TRIGGER update_users_updated_at
-  BEFORE UPDATE ON public.users
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_teams_updated_at ON public.teams;
-CREATE TRIGGER update_teams_updated_at
-  BEFORE UPDATE ON public.teams
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_race_results_updated_at ON public.race_results;
-CREATE TRIGGER update_race_results_updated_at
-  BEFORE UPDATE ON public.race_results
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
--- ============================================================================
--- INITIAL DATA
--- ============================================================================
-
--- Insert default F1 2025 tracks (can be customized per team)
--- This is just reference data - teams will select their own tracks
-INSERT INTO public.tracks_reference (name, country, type) VALUES
-  ('Bahrain International Circuit', 'Bahrain', 'street'),
-  ('Jeddah Corniche Circuit', 'Saudi Arabia', 'street'),
-  ('Albert Park Circuit', 'Australia', 'street'),
-  ('Suzuka International Racing Course', 'Japan', 'permanent'),
-  ('Shanghai International Circuit', 'China', 'permanent'),
-  ('Miami International Autodrome', 'United States', 'street'),
-  ('Autodromo Enzo e Dino Ferrari', 'Italy', 'permanent'),
-  ('Circuit de Monaco', 'Monaco', 'street'),
-  ('Circuit Gilles Villeneuve', 'Canada', 'semi-permanent'),
-  ('Circuit de Barcelona-Catalunya', 'Spain', 'permanent'),
-  ('Red Bull Ring', 'Austria', 'permanent'),
-  ('Silverstone Circuit', 'United Kingdom', 'permanent'),
-  ('Hungaroring', 'Hungary', 'permanent'),
-  ('Circuit de Spa-Francorchamps', 'Belgium', 'permanent'),
-  ('Circuit Zandvoort', 'Netherlands', 'permanent'),
-  ('Autodromo Nazionale di Monza', 'Italy', 'permanent'),
-  ('Baku City Circuit', 'Azerbaijan', 'street'),
-  ('Marina Bay Street Circuit', 'Singapore', 'street'),
-  ('Circuit of The Americas', 'United States', 'permanent'),
-  ('Autodromo Hermanos Rodriguez', 'Mexico', 'permanent'),
-  ('Interlagos', 'Brazil', 'permanent'),
-  ('Las Vegas Strip Circuit', 'United States', 'street'),
-  ('Lusail International Circuit', 'Qatar', 'permanent'),
-  ('Yas Marina Circuit', 'United Arab Emirates', 'permanent')
-ON CONFLICT DO NOTHING;
-
--- Create the tracks reference table
-CREATE TABLE IF NOT EXISTS public.tracks_reference (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE,
-  country TEXT NOT NULL,
-  type TEXT CHECK (type IN ('permanent', 'street', 'semi-permanent'))
-);
-
--- ============================================================================
--- HELPFUL VIEWS
--- ============================================================================
-
--- View for team standings (simplified)
-CREATE OR REPLACE VIEW public.team_standings AS
-SELECT 
-  t.id as team_id,
-  t.name as team_name,
-  COUNT(DISTINCT tm.id) as total_drivers,
-  COUNT(DISTINCT rr.track_name) as races_completed,
-  COALESCE(SUM(rr.points), 0) as total_points
-FROM public.teams t
-LEFT JOIN public.team_members tm ON t.id = tm.team_id
-LEFT JOIN public.race_results rr ON tm.id = rr.member_id
-GROUP BY t.id, t.name
-ORDER BY total_points DESC;
-
--- View for recent race results
-CREATE OR REPLACE VIEW public.recent_race_results AS
-SELECT 
-  t.name as team_name,
-  rr.track_name,
-  tm.driver_name,
-  rr.position,
-  rr.points,
-  rr.created_at
-FROM public.race_results rr
-JOIN public.team_members tm ON rr.member_id = tm.id
-JOIN public.teams t ON rr.team_id = t.id
-ORDER BY rr.created_at DESC
-LIMIT 50;
-
--- ============================================================================
--- GRANT PERMISSIONS
--- ============================================================================
-
--- Grant permissions for authenticated users
-GRANT USAGE ON SCHEMA public TO authenticated;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
-GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
-
--- Grant permissions for service role (for server-side operations)
-GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
-GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO service_role;
-
--- ============================================================================
--- NOTES
--- ============================================================================
-
-/*
-IMPLEMENTATION NOTES:
-
-1. Run this entire file in your Supabase SQL editor
-2. Make sure to enable RLS in your Supabase dashboard
-3. Test the policies with different user accounts
-4. The database supports:
-   - Multiple teams/leagues
-   - Team invitations and member management
-   - Race results tracking
-   - Driver analytics and performance data
-   - Configurable scoring systems
-   - Comprehensive standings calculations
-
-SECURITY NOTES:
-- All tables have RLS enabled
-- Users can only see data for teams they're members of
-- Only team admins can modify team settings and results
-- Invitations are email-based and expire after 7 days
-
-PERFORMANCE NOTES:
-- Indexes are created for common query patterns
-- Functions are marked as SECURITY DEFINER for optimal performance
-- Views provide simplified access to complex data
-
-CUSTOMIZATION:
-- Points systems can be customized per team via the teams.points_system JSONB field
-- Scoring rules can be modified via the teams.scoring_rules JSONB field
-- Track selection is flexible - teams choose their own tracks from the reference list
-*/
+-- Grant necessary permissions
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated;
