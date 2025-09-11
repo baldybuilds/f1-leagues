@@ -9,10 +9,10 @@ import { InvitesList } from './team/InvitesList'
 import { useTeams } from '@/hooks/useTeams'
 import { useInvites } from '@/hooks/useInvites'
 import { toast } from 'sonner'
-import { Trophy, Users, Flag, Plus, SignOut, Mail, Crown } from '@phosphor-icons/react'
+import { Users, Plus, Mail, Crown } from '@phosphor-icons/react'
 
 export function Dashboard() {
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const { teams, loading, refetch } = useTeams()
   const { invites } = useInvites()
   const [showCreateTeam, setShowCreateTeam] = useState(false)
@@ -33,11 +33,6 @@ export function Dashboard() {
     refetch()
   }
 
-  const handleSignOut = async () => {
-    await signOut()
-    toast.success('Signed out successfully')
-  }
-
   // Safety check - don't render if user is not loaded
   if (!user) {
     return (
@@ -49,28 +44,7 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-accent/10">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <Flag size={32} className="text-primary" weight="fill" />
-                <Trophy size={16} className="text-accent absolute -top-1 -right-1" weight="fill" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">F1 League Manager</h1>
-                <p className="text-sm text-muted-foreground">Welcome back, {user?.email}</p>
-              </div>
-            </div>
-            <Button variant="outline" onClick={handleSignOut}>
-              <SignOut size={16} className="mr-2" />
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 pt-6 pb-8">
         <div className="grid gap-8">
           <div>
             <Tabs defaultValue="teams" className="w-full">

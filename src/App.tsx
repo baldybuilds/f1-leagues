@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { LandingPage } from '@/components/LandingPage'
 import { AuthModal } from '@/components/auth/AuthModal'
 import { Dashboard } from '@/components/Dashboard'
+import { Navbar } from '@/components/Navbar'
 import { Toaster } from '@/components/ui/sonner'
 import { DatabaseStatusBanner } from '@/components/DatabaseStatusBanner'
 
@@ -18,20 +19,18 @@ function AppContent() {
     )
   }
 
-  if (user) {
-    return (
-      <>
-        <DatabaseStatusBanner />
-        <Dashboard />
-      </>
-    )
-  }
-
   return (
     <>
       <DatabaseStatusBanner />
-      <LandingPage onGetStarted={() => setShowAuth(true)} />
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      <Navbar />
+      {user ? (
+        <Dashboard />
+      ) : (
+        <>
+          <LandingPage onGetStarted={() => setShowAuth(true)} />
+          {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+        </>
+      )}
     </>
   )
 }

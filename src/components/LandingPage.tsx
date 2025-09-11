@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Trophy, Lightning, Users, Flag } from '@phosphor-icons/react'
+import { Trophy, Lightning, Users } from '@phosphor-icons/react'
 
 interface LandingPageProps {
   onGetStarted: () => void
@@ -9,19 +9,8 @@ interface LandingPageProps {
 export function LandingPage({ onGetStarted }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-accent/10">
-      <div className="container mx-auto px-4 py-16">
+      <div className="container mx-auto px-4 pt-12 pb-16">
         <div className="text-center max-w-4xl mx-auto mb-16">
-          <div className="flex items-center justify-center mb-6">
-            <div className="relative">
-              <Flag size={48} className="text-primary" weight="fill" />
-              <Lightning 
-                size={24} 
-                className="text-accent absolute -top-2 -right-2" 
-                weight="fill" 
-              />
-            </div>
-          </div>
-          
           <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
             F1 League Manager
           </h1>
