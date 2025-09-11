@@ -21,6 +21,10 @@ export type Database = {
           user_id: string
           color: string
           points: number
+          game: string | null
+          start_date: string | null
+          end_date: string | null
+          selected_tracks: string[] | null
           created_at: string
           updated_at: string
         }
@@ -30,6 +34,10 @@ export type Database = {
           user_id: string
           color?: string
           points?: number
+          game?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          selected_tracks?: string[] | null
           created_at?: string
           updated_at?: string
         }
@@ -39,6 +47,51 @@ export type Database = {
           user_id?: string
           color?: string
           points?: number
+          game?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          selected_tracks?: string[] | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      race_results: {
+        Row: {
+          id: string
+          team_id: string
+          track_id: string
+          race_date: string
+          position: number
+          points: number
+          fastest_lap: boolean
+          dnf: boolean
+          dnf_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          track_id: string
+          race_date: string
+          position: number
+          points: number
+          fastest_lap?: boolean
+          dnf?: boolean
+          dnf_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          track_id?: string
+          race_date?: string
+          position?: number
+          points?: number
+          fastest_lap?: boolean
+          dnf?: boolean
+          dnf_reason?: string | null
           created_at?: string
           updated_at?: string
         }
