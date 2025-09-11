@@ -1,11 +1,17 @@
 -- QualiPal F1 League Manager Database Schema
--- Complete SQL setup for all required tables
+-- Complete SQL setup for all required tables and functions
+-- 
+-- This file contains all necessary SQL commands to set up the database:
+-- - Tables for users, teams, tracks, race results, and invites
+-- - Row Level Security policies
+-- - Functions for automatic points calculation
+-- - Triggers for data consistency
+-- - Indexes for performance
+--
+-- To use: Execute this entire file in your Supabase SQL editor
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- Enable Row Level Security
-ALTER DATABASE postgres SET "app.jwt_secret" TO 'your-jwt-secret-here';
 
 -- User profiles table (extends Supabase auth.users)
 CREATE TABLE IF NOT EXISTS public.user_profiles (
@@ -292,10 +298,10 @@ CREATE TRIGGER on_auth_user_created
 
 -- Function to calculate points based on position and scoring system
 CREATE OR REPLACE FUNCTION public.calculate_points(
-  p_finishing_position INTEGER,
+  p_finish_pos INTEGER,
   p_scoring_system JSONB,
   p_fastest_lap BOOLEAN DEFAULT FALSE,
-  p_pole_position BOOLEAN DEFAULT FALSE,
+  p_pole_pos BOOLEAN DEFAULT FALSE,
   p_fastest_lap_points INTEGER DEFAULT 1,
   p_pole_points INTEGER DEFAULT 0
 ) RETURNS INTEGER AS $$
@@ -304,7 +310,7 @@ DECLARE
   bonus_points INTEGER := 0;
 BEGIN
   -- Get base points from scoring system
-  CASE p_finishing_position
+  CASE p_finish_pos
     WHEN 1 THEN base_points := (p_scoring_system->>'win')::INTEGER;
     WHEN 2 THEN base_points := (p_scoring_system->>'second')::INTEGER;
     WHEN 3 THEN base_points := (p_scoring_system->>'third')::INTEGER;
@@ -323,7 +329,7 @@ BEGIN
     bonus_points := bonus_points + p_fastest_lap_points;
   END IF;
   
-  IF p_pole_position THEN
+  IF p_pole_pos THEN
     bonus_points := bonus_points + p_pole_points;
   END IF;
   
