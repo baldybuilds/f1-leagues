@@ -27,6 +27,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     })
 
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      setLoading(false)
+    }).catch((error) => {
+      console.warn('Auth session error:', error.message)
+      setLoading(false)
+    })
+
     return () => subscription.unsubscribe()
   }, [])
 

@@ -4,6 +4,7 @@ import { LandingPage } from '@/components/LandingPage'
 import { AuthModal } from '@/components/auth/AuthModal'
 import { Dashboard } from '@/components/Dashboard'
 import { Toaster } from '@/components/ui/sonner'
+import { DatabaseStatusBanner } from '@/components/DatabaseStatusBanner'
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -18,11 +19,17 @@ function AppContent() {
   }
 
   if (user) {
-    return <Dashboard />
+    return (
+      <>
+        <DatabaseStatusBanner />
+        <Dashboard />
+      </>
+    )
   }
 
   return (
     <>
+      <DatabaseStatusBanner />
       <LandingPage onGetStarted={() => setShowAuth(true)} />
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </>

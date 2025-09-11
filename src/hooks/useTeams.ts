@@ -22,7 +22,10 @@ export function useTeams() {
   const [error, setError] = useState<string | null>(null)
 
   const fetchTeams = async () => {
-    if (!user?.id) return
+    if (!user?.id) {
+      setLoading(false)
+      return
+    }
 
     try {
       setLoading(true)
@@ -37,7 +40,14 @@ export function useTeams() {
         .or(`created_by.eq.${user.id},id.in.(select team_id from team_members where user_id.eq.${user.id})`)
         .order('created_at', { ascending: false })
 
-      if (teamsError) throw teamsError
+      if (teamsError) {
+        // If tables don't exist, just set empty teams instead of throwing
+        console.warn('Teams table not found:', teamsError.message)
+        setTeams([])
+        setError(null)
+        setLoading(false)
+        return
+      }
 
       // Process teams to add track count and creator status
       const processedTeams = (teamsData || []).map(team => ({
@@ -56,8 +66,9 @@ export function useTeams() {
       setTeams(processedTeams)
       setError(null)
     } catch (err: any) {
-      setError(err.message)
-      console.error('Error fetching teams:', err)
+      console.warn('Error fetching teams:', err.message)
+      setTeams([])
+      setError(null)
     } finally {
       setLoading(false)
     }

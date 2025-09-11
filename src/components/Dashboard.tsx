@@ -38,6 +38,15 @@ export function Dashboard() {
     toast.success('Signed out successfully')
   }
 
+  // Safety check - don't render if user is not loaded
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-accent/10">
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-40">

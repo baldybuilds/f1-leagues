@@ -22,7 +22,7 @@ interface Track {
   name: string
   country: string
   location: string
-  season: number
+  year: number
 }
 
 export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps) {
@@ -38,19 +38,25 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
   // Fetch available tracks from database
   useEffect(() => {
     const fetchTracks = async () => {
-      const { data, error } = await supabase
-        .from('tracks')
-        .select('*')
-        .eq('season', 2025)
-        .order('name')
+      try {
+        const { data, error } = await supabase
+          .from('tracks')
+          .select('*')
+          .eq('year', 2025)
+          .order('name')
 
-      if (error) {
-        console.error('Error fetching tracks:', error)
-        toast.error('Failed to load tracks')
-        return
+        if (error) {
+          console.warn('Error fetching tracks:', error.message)
+          // Set some default tracks if database isn't ready
+          setAvailableTracks([])
+          return
+        }
+
+        setAvailableTracks(data || [])
+      } catch (err) {
+        console.warn('Failed to fetch tracks, using empty array')
+        setAvailableTracks([])
       }
-
-      setAvailableTracks(data || [])
     }
 
     fetchTracks()

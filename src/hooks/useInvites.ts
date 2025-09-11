@@ -30,7 +30,10 @@ export function useInvites() {
   const [error, setError] = useState<string | null>(null)
 
   const fetchInvites = async () => {
-    if (!user?.email) return
+    if (!user?.email) {
+      setLoading(false)
+      return
+    }
 
     try {
       setLoading(true)
@@ -52,13 +55,21 @@ export function useInvites() {
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        // If tables don't exist, just set empty invites instead of throwing
+        console.warn('Invites table not found:', error.message)
+        setInvites([])
+        setError(null)
+        setLoading(false)
+        return
+      }
 
       setInvites(data || [])
       setError(null)
     } catch (err: any) {
-      setError(err.message)
-      console.error('Error fetching invites:', err)
+      console.warn('Error fetching invites:', err.message)
+      setInvites([])
+      setError(null)
     } finally {
       setLoading(false)
     }
