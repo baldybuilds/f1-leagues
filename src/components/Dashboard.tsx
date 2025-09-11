@@ -1,16 +1,13 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/contexts/AuthContext'
 import { CreateTeamModal } from './team/CreateTeamModal'
 import { TeamCard } from './team/TeamCard'
-import { DriverStandings } from './team/DriverStandings'
 import { InvitesList } from './team/InvitesList'
 import { useTeams } from '@/hooks/useTeams'
 import { useInvites } from '@/hooks/useInvites'
-import { TeamCardSkeleton } from '@/components/ui/loading-skeletons'
 import { toast } from 'sonner'
 import { Trophy, Users, Flag, Plus, SignOut, Mail, Crown } from '@phosphor-icons/react'
 
@@ -20,8 +17,8 @@ export function Dashboard() {
   const { invites } = useInvites()
   const [showCreateTeam, setShowCreateTeam] = useState(false)
 
-  const ownedTeams = teams?.filter(team => team.user_role === 'owner') || []
-  const memberTeams = teams?.filter(team => team.user_role === 'admin' || team.user_role === 'member') || []
+  const ownedTeams = teams?.filter(team => team.created_by === user?.id) || []
+  const memberTeams = teams?.filter(team => team.created_by !== user?.id) || []
 
   const handleTeamCreated = () => {
     refetch()
@@ -65,8 +62,8 @@ export function Dashboard() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        <div className={`grid gap-8 ${(teams?.length || 0) > 0 ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
-          <div className={(teams?.length || 0) > 0 ? "lg:col-span-2" : ""}>
+        <div className="grid gap-8">
+          <div>
             <Tabs defaultValue="teams" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="teams" className="flex items-center gap-2">
@@ -89,27 +86,25 @@ export function Dashboard() {
                   <h2 className="text-2xl font-semibold">Your Teams</h2>
                   <Button onClick={() => setShowCreateTeam(true)}>
                     <Plus size={16} className="mr-2" />
-                    Create Team
+                    Create League
                   </Button>
                 </div>
 
                 {loading ? (
-                  <div className="space-y-4">
-                    {Array.from({ length: 2 }).map((_, i) => (
-                      <TeamCardSkeleton key={i} />
-                    ))}
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                   </div>
                 ) : (teams?.length || 0) === 0 ? (
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                       <Users size={48} className="text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">No teams yet</h3>
+                      <h3 className="text-lg font-semibold mb-2">No leagues yet</h3>
                       <p className="text-muted-foreground mb-4">
-                        Create your first F1 team or accept an invite to start competing
+                        Create your first F1 league or accept an invite to start competing
                       </p>
                       <Button onClick={() => setShowCreateTeam(true)}>
                         <Plus size={16} className="mr-2" />
-                        Create Your First Team
+                        Create Your First League
                       </Button>
                     </CardContent>
                   </Card>
@@ -119,7 +114,7 @@ export function Dashboard() {
                       <div>
                         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                           <Crown size={20} className="text-primary" />
-                          Teams You Own ({ownedTeams.length})
+                          Leagues You Own ({ownedTeams.length})
                         </h3>
                         <div className="grid gap-4">
                           {ownedTeams.map((team) => (
@@ -127,7 +122,7 @@ export function Dashboard() {
                               key={team.id} 
                               team={team} 
                               isOwner={true}
-                              isAdmin={false}
+                              isAdmin={team.is_admin || false}
                               onTeamUpdated={handleTeamUpdated}
                               onTeamDeleted={handleTeamDeleted}
                             />
@@ -140,7 +135,7 @@ export function Dashboard() {
                       <div>
                         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                           <Users size={20} className="text-accent" />
-                          Teams You're In ({memberTeams.length})
+                          Leagues You're In ({memberTeams.length})
                         </h3>
                         <div className="grid gap-4">
                           {memberTeams.map((team) => (
@@ -148,7 +143,7 @@ export function Dashboard() {
                               key={team.id} 
                               team={team} 
                               isOwner={false}
-                              isAdmin={team.user_role === 'admin'}
+                              isAdmin={team.is_admin || false}
                               onTeamUpdated={handleTeamUpdated}
                               onTeamDeleted={handleTeamDeleted}
                             />
@@ -161,18 +156,11 @@ export function Dashboard() {
               </TabsContent>
 
               <TabsContent value="invites" className="space-y-6">
-                <h2 className="text-2xl font-semibold">Team Invites</h2>
+                <h2 className="text-2xl font-semibold">League Invites</h2>
                 <InvitesList />
               </TabsContent>
             </Tabs>
           </div>
-
-          {(teams?.length || 0) > 0 && (
-            <div>
-              <h2 className="text-2xl font-semibold mb-6">Global Driver Standings</h2>
-              <DriverStandings title="All Drivers" />
-            </div>
-          )}
         </div>
       </div>
 

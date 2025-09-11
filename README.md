@@ -1,111 +1,143 @@
-# F1 League Manager
+# QualiPal - F1 League Manager
 
-A modern web application for managing Formula 1 fantasy leagues with friends, featuring global leaderboards, team customization, and real-time updates.
+A modern, clean F1 league management application built with React, TypeScript, and Supabase.
 
-## Features
+## 🏁 Features
 
-- 🏎️ **Team Management** - Create and customize F1 teams with unique names and colors
-- 🏆 **Global Leaderboards** - Compete with teams worldwide in real-time standings
-- 🔐 **Secure Authentication** - Email/password authentication with Supabase
-- 📱 **Responsive Design** - Optimized for desktop and mobile devices
-- ⚡ **Real-time Updates** - Live updates when teams are created or modified
-- 🎨 **Modern UI** - F1-inspired design with smooth animations
+- **League Creation**: Create F1 leagues with track selection from the 2025 calendar
+- **Game Support**: Choose between F1 24 and F1 25
+- **Team Invitations**: Email-based invitation system for league members
+- **Track Selection**: Full 2025 F1 track lineup with detailed information
+- **Role Management**: Owner and member roles with appropriate permissions
+- **Real-time Updates**: Live updates using Supabase subscriptions
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-- **Frontend**: React 19 + TypeScript + Vite
-- **Styling**: Tailwind CSS + shadcn/ui components
-- **Authentication & Database**: Supabase
+- **Frontend**: React 18 + TypeScript + Vite
+- **UI Components**: shadcn/ui
+- **Styling**: Tailwind CSS
+- **Backend**: Supabase (PostgreSQL + Auth)
 - **Icons**: Phosphor Icons
-- **Animations**: Framer Motion
-- **Notifications**: Sonner
 
-## Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- Supabase account and project
+- Node.js 18+ 
+- A Supabase project
 
-### Installation
+### Setup
 
-1. **Clone the repository**
+1. **Clone and install dependencies**
    ```bash
-   git clone <repository-url>
-   cd f1-league-manager
-   ```
-
-2. **Install dependencies**
-   ```bash
+   git clone <your-repo>
+   cd qualipal
    npm install
    ```
 
-3. **Set up Supabase**
-   - Create a new project at [supabase.com](https://supabase.com)
-   - Follow the setup guide in `SUPABASE_SETUP.md`
-   - Run the SQL commands to create the database schema
-
-4. **Configure environment variables**
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env` and add your Supabase credentials:
-   ```
-   VITE_SUPABASE_URL=https://your-project-id.supabase.co
-   VITE_SUPABASE_ANON_KEY=your-anon-key-here
+2. **Configure environment variables**
+   Create a `.env` file:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_project_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 
-5. **Start the development server**
+3. **Set up the database**
+   Run the SQL in `database-setup.sql` in your Supabase SQL editor. This will:
+   - Create all necessary tables
+   - Set up Row Level Security policies
+   - Insert 2025 F1 track data
+   - Configure triggers and functions
+
+4. **Start the development server**
    ```bash
    npm run dev
    ```
 
-6. **Open your browser**
-   Navigate to `http://localhost:5173`
+## 📊 Database Schema
 
-## Usage
+### Core Tables
 
-1. **Create an Account** - Sign up with your email and verify your account
-2. **Create a Team** - Design your F1 team with a custom name and color
-3. **View Standings** - Check the global leaderboard to see how you rank
-4. **Manage Teams** - Edit or create additional teams as needed
+- **teams**: League information and configuration
+- **team_members**: User membership in leagues
+- **team_invites**: Email-based invitation system
+- **team_tracks**: Many-to-many relationship for track selection
+- **tracks**: F1 circuit information
+- **race_results**: Future: race performance data
+- **league_settings**: Future: custom scoring and rules
 
-## Project Structure
+### Key Features
+
+- UUID primary keys for security
+- Row Level Security for data isolation
+- Enum types for constrained values
+- Automated triggers for data consistency
+- Real-time subscriptions support
+
+## 🎨 Design System
+
+### Colors
+- **Primary**: Deep magenta/purple (`oklch(0.68 0.14 340)`)
+- **Secondary**: Gold/yellow (`oklch(0.88 0.10 60)`)
+- **Accent**: Teal/cyan (`oklch(0.75 0.12 180)`)
+
+### Typography
+- **Headings**: Quicksand (clean, modern)
+- **Body**: Quicksand (consistency)
+- **Code**: JetBrains Mono (data display)
+
+## 🏗️ Project Structure
 
 ```
 src/
-├── components/          # React components
+├── components/
 │   ├── auth/           # Authentication components
-│   ├── league/         # League and standings components
-│   ├── team/           # Team management components
-│   └── ui/             # Reusable UI components (shadcn)
-├── contexts/           # React contexts (Auth)
+│   ├── team/           # League management components
+│   └── ui/             # shadcn/ui components
+├── contexts/           # React contexts
 ├── hooks/              # Custom React hooks
 ├── lib/                # Utilities and configurations
-└── styles/             # CSS and theme files
+└── types/              # TypeScript type definitions
 ```
 
-## Database Schema
+## 🔐 Authentication & Security
 
-The application uses two main tables:
+- Supabase Auth for user management
+- Row Level Security policies
+- Email-based invitations
+- Role-based access control
+- Secure data isolation between leagues
 
-- **teams** - Stores team information (name, color, points, owner)
-- **leagues** - For future league organization features
+## 🎯 Current Status
 
-Row Level Security (RLS) is enabled to ensure users can only modify their own teams while viewing all teams in the global standings.
+✅ **Complete**
+- Authentication system
+- League creation and management
+- Track selection from 2025 calendar
+- Invitation system
+- Clean, responsive UI
+- Database schema and security
 
-## Contributing
+🔄 **Ready for Extension**
+- Race result tracking
+- Driver standings
+- Performance analytics
+- Custom scoring systems
+- Calendar integration
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+## 🚀 Future Roadmap
 
-## License
+1. **Race Results**: Add race performance tracking
+2. **Driver Standings**: League leaderboards and statistics
+3. **Analytics**: Performance insights and trends
+4. **Scoring Systems**: Custom points and rules configuration
+5. **Calendar**: Race scheduling and planning
+6. **Mobile App**: React Native companion app
 
-MIT License - see LICENSE file for details
+## 🤝 Contributing
 
-## Support
+This is a clean, well-structured codebase ready for feature expansion. The database schema and component architecture support easy addition of new functionality.
 
-For issues or questions, please open an issue on GitHub or contact the development team.
+## 📝 License
+
+MIT License - see LICENSE file for details.

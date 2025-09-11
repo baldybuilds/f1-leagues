@@ -5,16 +5,14 @@ import { useAuth } from '@/contexts/AuthContext'
 interface Team {
   id: string
   name: string
-  game_version: string
-  season_start_date: string
-  season_end_date: string
+  game: 'F1_24' | 'F1_25'
+  start_date: string
+  end_date: string
   created_by: string
   created_at: string
   updated_at: string
-  // These will be calculated/joined fields
-  points?: number
   track_count?: number
-  user_role?: 'owner' | 'admin' | 'member' | null
+  is_admin?: boolean
 }
 
 export function useTeams() {
@@ -29,49 +27,32 @@ export function useTeams() {
     try {
       setLoading(true)
       
-      // Use the new function to get teams user has access to
-      const { data: userTeams, error: userTeamsError } = await supabase
-        .rpc('get_user_teams', { p_user_id: user.id })
-
-      if (userTeamsError) throw userTeamsError
-
-      if (!userTeams || userTeams.length === 0) {
-        setTeams([])
-        setError(null)
-        return
-      }
-
-      // Get team details for teams user has access to
-      const teamIds = userTeams.map(ut => ut.team_id)
-      
+      // Get teams where user is a member
       const { data: teamsData, error: teamsError } = await supabase
         .from('teams')
         .select(`
           *,
-          race_results(points),
-          team_tracks(track_id)
+          team_tracks(id),
+          team_members!inner(is_admin)
         `)
-        .in('id', teamIds)
+        .eq('team_members.user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (teamsError) throw teamsError
 
-      // Create a map of user roles
-      const roleMap = new Map(
-        userTeams.map(ut => [ut.team_id, ut.role === 'creator' ? 'owner' : ut.role])
-      )
-
-      // Process teams to calculate total points and track count
-      const processedTeams = (teamsData || [])
-        .map(team => ({
-          ...team,
-          points: team.race_results?.reduce((sum: number, result: any) => sum + (result.points || 0), 0) || 0,
-          track_count: team.team_tracks?.length || 0,
-          user_role: roleMap.get(team.id) as 'owner' | 'admin' | 'member'
-        }))
-
-      // Sort by points (highest first)
-      processedTeams.sort((a, b) => (b.points || 0) - (a.points || 0))
+      // Process teams to add track count and admin status
+      const processedTeams = (teamsData || []).map(team => ({
+        id: team.id,
+        name: team.name,
+        game: team.game,
+        start_date: team.start_date,
+        end_date: team.end_date,
+        created_by: team.created_by,
+        created_at: team.created_at,
+        updated_at: team.updated_at,
+        track_count: team.team_tracks?.length || 0,
+        is_admin: team.team_members?.[0]?.is_admin || false
+      }))
 
       setTeams(processedTeams)
       setError(null)
@@ -83,65 +64,28 @@ export function useTeams() {
     }
   }
 
-  // Function to recalculate team points based on race results
-  const updateTeamPoints = async (teamId: string) => {
-    try {
-      // Just refetch teams since points are calculated dynamically
-      fetchTeams()
-    } catch (err: any) {
-      console.error('Error updating team points:', err.message)
-    }
-  }
-
   useEffect(() => {
     if (user?.id) {
       fetchTeams()
 
-      // Subscribe to real-time changes for teams
-      const teamsSubscription = supabase
-        .channel('teams_changes')
+      // Subscribe to real-time changes
+      const subscription = supabase
+        .channel('team_changes')
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'teams' },
-          () => {
-            fetchTeams()
-          }
+          () => fetchTeams()
         )
-        .subscribe()
-
-      // Subscribe to race results changes to update team points
-      const raceResultsSubscription = supabase
-        .channel('race_results_changes')
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'race_results' },
-          (payload) => {
-            if (payload.new && 'team_id' in payload.new) {
-              updateTeamPoints(payload.new.team_id as string)
-            }
-            if (payload.old && 'team_id' in payload.old) {
-              updateTeamPoints(payload.old.team_id as string)
-            }
-          }
-        )
-        .subscribe()
-
-      // Subscribe to team member changes
-      const membersSubscription = supabase
-        .channel('team_members_changes')
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'team_members' },
-          () => {
-            fetchTeams()
-          }
+          () => fetchTeams()
         )
         .subscribe()
 
       return () => {
-        teamsSubscription.unsubscribe()
-        raceResultsSubscription.unsubscribe()
-        membersSubscription.unsubscribe()
+        subscription.unsubscribe()
       }
     }
   }, [user?.id])
 
-  return { teams, loading, error, refetch: fetchTeams, updateTeamPoints }
+  return { teams, loading, error, refetch: fetchTeams }
 }

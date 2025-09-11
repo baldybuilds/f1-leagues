@@ -1,7 +1,27 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { TeamInvite, InviteWithTeam } from '@/types/invites'
 import { useAuth } from '@/contexts/AuthContext'
+
+interface TeamInvite {
+  id: string
+  team_id: string
+  invited_by: string
+  invited_email: string
+  status: 'pending' | 'accepted' | 'rejected'
+  created_at: string
+  expires_at: string
+}
+
+interface InviteWithTeam extends TeamInvite {
+  team: {
+    id: string
+    name: string
+    game: 'F1_24' | 'F1_25'
+    start_date: string
+    end_date: string
+    created_by: string
+  }
+}
 
 export function useInvites() {
   const { user } = useAuth()
@@ -22,13 +42,13 @@ export function useInvites() {
           team:teams(
             id,
             name,
-            game_version,
+            game,
             start_date,
             end_date,
             created_by
           )
         `)
-        .eq('invitee_email', user.email)
+        .eq('invited_email', user.email)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
 
@@ -52,7 +72,7 @@ export function useInvites() {
       .from('team_invites')
       .select('id')
       .eq('team_id', teamId)
-      .eq('invitee_email', inviteeEmail)
+      .eq('invited_email', inviteeEmail)
       .eq('status', 'pending')
       .single()
 
@@ -64,8 +84,8 @@ export function useInvites() {
       .from('team_invites')
       .insert({
         team_id: teamId,
-        inviter_id: user.id,
-        invitee_email: inviteeEmail.toLowerCase(),
+        invited_by: user.id,
+        invited_email: inviteeEmail.toLowerCase(),
         status: 'pending'
       })
       .select()
@@ -75,15 +95,12 @@ export function useInvites() {
     return data
   }
 
-  const respondToInvite = async (inviteId: string, status: 'accepted' | 'declined') => {
+  const respondToInvite = async (inviteId: string, status: 'accepted' | 'rejected') => {
     if (!user?.id) throw new Error('User not authenticated')
 
     const { data: invite, error: updateError } = await supabase
       .from('team_invites')
-      .update({ 
-        status,
-        updated_at: new Date().toISOString()
-      })
+      .update({ status })
       .eq('id', inviteId)
       .select('team_id')
       .single()
@@ -97,7 +114,7 @@ export function useInvites() {
         .insert({
           team_id: invite.team_id,
           user_id: user.id,
-          driver_name: user.email?.split('@')[0] || 'Driver'
+          is_admin: false
         })
 
       if (memberError) throw memberError
@@ -119,7 +136,7 @@ export function useInvites() {
             event: '*', 
             schema: 'public', 
             table: 'team_invites',
-            filter: `invitee_email=eq.${user.email}`
+            filter: `invited_email=eq.${user.email}`
           },
           () => {
             fetchInvites()

@@ -25,15 +25,10 @@ interface Track {
   season: number
 }
 
-const F1_GAMES = [
-  { value: 'F1 24', label: 'F1 24' },
-  { value: 'F1 25', label: 'F1 25' }
-] as const
-
 export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps) {
   const { user } = useAuth()
   const [teamName, setTeamName] = useState('')
-  const [selectedGame, setSelectedGame] = useState('')
+  const [selectedGame, setSelectedGame] = useState<'F1_24' | 'F1_25' | ''>('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedTracks, setSelectedTracks] = useState<string[]>([])
@@ -94,7 +89,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
         .from('teams')
         .insert({
           name: teamName,
-          game_version: selectedGame,
+          game: selectedGame,
           start_date: startDate,
           end_date: endDate,
           created_by: user.id,
@@ -108,7 +103,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
       const teamTrackInserts = selectedTracks.map((trackId, index) => ({
         team_id: teamData.id,
         track_id: trackId,
-        round_number: index + 1
+        race_order: index + 1
       }))
 
       const { error: trackError } = await supabase
@@ -117,23 +112,11 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
 
       if (trackError) throw trackError
 
-      // Add the owner as an admin team member
-      const { error: memberError } = await supabase
-        .from('team_members')
-        .insert({
-          team_id: teamData.id,
-          user_id: user.id,
-          driver_name: user.email?.split('@')[0] || 'Team Owner',
-          team_name: teamName
-        })
-
-      if (memberError) throw memberError
-
-      toast.success('Team created successfully!')
+      toast.success('League created successfully!')
       onTeamCreated()
     } catch (error: any) {
       console.error('Error creating team:', error)
-      toast.error(error.message || 'Failed to create team')
+      toast.error(error.message || 'Failed to create league')
     } finally {
       setLoading(false)
     }
@@ -174,16 +157,13 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
                     <GameController size={16} />
                     F1 Game Version
                   </Label>
-                  <Select value={selectedGame} onValueChange={setSelectedGame} required>
+                  <Select value={selectedGame} onValueChange={(value: 'F1_24' | 'F1_25') => setSelectedGame(value)} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select F1 game version" />
                     </SelectTrigger>
                     <SelectContent>
-                      {F1_GAMES.map((game) => (
-                        <SelectItem key={game.value} value={game.value}>
-                          {game.label}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="F1_24">F1 24</SelectItem>
+                      <SelectItem value="F1_25">F1 25</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -301,7 +281,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
                     <span className="font-medium">{teamName || 'Your Team Name'}</span>
                   </div>
                   <div className="text-muted-foreground">
-                    {selectedGame ? F1_GAMES.find(g => g.value === selectedGame)?.label : 'Select game version'}
+                    {selectedGame ? (selectedGame === 'F1_24' ? 'F1 24' : 'F1 25') : 'Select game version'}
                   </div>
                 </div>
                 <div className="space-y-1 text-muted-foreground">

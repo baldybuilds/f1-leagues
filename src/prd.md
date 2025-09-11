@@ -1,59 +1,61 @@
 # QualiPal - F1 League Manager PRD
 
 ## Core Purpose & Success
-- **Mission Statement**: Provide F1 gaming communities with a comprehensive league management platform that tracks race results, standings, and performance analytics.
-- **Success Indicators**: Active league creation, consistent race result tracking, user engagement with analytics features, and positive community feedback.
-- **Experience Qualities**: Professional, Racing-Inspired, Data-Rich
+- **Mission Statement**: Provide F1 gaming communities with a simple, elegant league management platform that tracks race results and league participation.
+- **Success Indicators**: Active league creation, consistent invite system usage, clean team management, and positive user experience.
+- **Experience Qualities**: Simple, Professional, Community-Focused
 
 ## Project Classification & Approach
-- **Complexity Level**: Complex Application (advanced functionality, user accounts, team management)
-- **Primary User Activity**: Creating and Managing F1 racing leagues
+- **Complexity Level**: Light Application (multiple features with basic state, invite system)
+- **Primary User Activity**: Creating and managing F1 racing leagues with friends
 
 ## Essential Features
 
-### Team/League Management
-- Create and configure F1 teams/leagues
-- Invite system for team membership
-- Role-based permissions (Owner, Admin, Member)
-- Team editing and deletion capabilities
+### League Management
+- Create F1 leagues with track selection
+- Game version selection (F1 24, F1 25)
+- Date range configuration
+- Clean league overview and management
 
-### Race Result Tracking
-- Add race results for selected tracks
-- Support for position, points, fastest lap, and DNF tracking
-- Race calendar with track selection
-- Automated points calculation
+### Team Invitation System
+- Send invites via email
+- Accept/reject invitations
+- Role-based access (Owner, Member)
+- Real-time invite management
 
-### Driver Performance Analytics
-- Driver standings and leaderboards
-- Individual performance metrics
-- Season statistics and trends
-- Performance comparison tools
-
-### **League Settings & Configuration** ⭐ New Feature
-- **Scoring System Configuration**: Custom points systems, preset formats (F1 2024, Classic, Extended, Sprint)
-- **League Rules Management**: Race format, penalty systems, driver aids, weather settings
-- **Flexible Configuration**: Support for different league styles and preferences
-- **Settings Inheritance**: Apply scoring and rules across all league races
+### Track Selection
+- Full 2025 F1 calendar available
+- Multi-track selection for leagues
+- Track information display
+- Season-based track organization
 
 ### Authentication & Authorization
 - Supabase-based authentication
 - User profile management
 - Secure data access controls
+- Row Level Security implementation
 
-## Design Direction
+## Current Implementation Status
+- ✅ Authentication system working
+- ✅ League creation with track selection
+- ✅ Invitation system functional
+- ✅ Clean database structure
+- ✅ Responsive UI components
+- 🔄 Ready for future feature expansion
 
-### Visual Tone & Identity
-- **Emotional Response**: Excitement, precision, professionalism
-- **Design Personality**: Modern, racing-inspired, data-focused
-- **Visual Metaphors**: F1 racing elements, trophies, checkered flags
-- **Simplicity Spectrum**: Clean interface with rich data presentation
+## Future Expansion Areas
+- Race result tracking
+- Driver standings
+- Performance analytics
+- Scoring system configuration
+- Calendar integration
 
 ### Color Strategy
-- **Color Scheme Type**: Racing-inspired with accent colors
-- **Primary Color**: Deep racing red/purple for branding
-- **Secondary Colors**: Complementary blues and golds for data
-- **Accent Color**: Bright racing yellow for CTAs and highlights
-- **Color Psychology**: Professional trust with exciting racing energy
+- **Color Scheme Type**: Racing-inspired with professional tones
+- **Primary Color**: Deep magenta/purple for F1 branding inspiration
+- **Secondary Colors**: Complementary gold/yellow for accent elements
+- **Accent Color**: Teal/cyan for highlights and success states
+- **Color Psychology**: Professional racing aesthetic with modern appeal
 
 ### Typography System
 - **Font Pairing Strategy**: Modern sans-serif for clarity and speed
@@ -63,50 +65,29 @@
 
 ### UI Elements & Component Selection
 - **Component Library**: shadcn/ui for consistent, modern components
-- **Cards**: For team display, results, and analytics
-- **Tables**: For standings and detailed race results
-- **Charts**: For performance analytics and trends
+- **Cards**: For league display and management
+- **Forms**: For league creation and invitations
+- **Tables**: Future use for standings and results
 - **Modals**: For data entry and team management
 - **Navigation**: Tab-based interface for feature organization
 
-### League Settings UI Design
-- **Settings Icon**: Sliders icon in team cards for quick access
-- **Page Structure**: Tabbed interface (Scoring System, League Rules)
-- **Preset Selection**: Visual cards showing different scoring systems
-- **Custom Configuration**: Form-based editing with live preview
-- **Rule Categories**: Organized sections for different rule types
-- **Summary View**: Overview of current configuration
+## Implementation Notes
 
-## Implementation Considerations
+### Database Architecture
+- Clean, normalized schema with proper relationships
+- Row-level security for team-based access control
+- UUID primary keys for security
+- Enum types for constrained values
+- Proper indexing and constraints
 
-### Database Schema Updates
-- New `league_settings` table with JSONB fields for flexibility
-- Row-level security policies for team-based access
-- Foreign key relationships to teams table
+### Authentication & Security
+- Supabase Auth integration
+- Row Level Security policies
+- Role-based access control
+- Email-based invitations
 
-### State Management
-- React hooks for settings management
-- Real-time updates via Supabase subscriptions
-- Optimistic UI updates for better UX
-
-### Scoring System Integration
-- Updated points calculation to use league settings
-- Backward compatibility with existing race results
-- Migration support for teams without settings
-
-### Permissions & Access Control
-- Team owners: Full configuration access
-- Team admins: Full configuration access
-- Team members: Read-only access
-- Non-members: No access
-
-## New Feature Integration
-
-The League Settings feature seamlessly integrates with existing functionality:
-
-1. **Team Cards**: Settings icon appears on hover for owners/admins
-2. **Race Results**: Points calculated using custom scoring systems
-3. **Driver Standings**: Reflects custom scoring configurations
-4. **Analytics**: Adapts to different scoring systems for accurate insights
-
-This enhancement transforms QualiPal from a basic tracking tool into a comprehensive league management platform that adapts to different community preferences and racing formats.
+### Performance Considerations
+- Efficient queries with proper joins
+- Real-time subscriptions for live updates
+- Optimistic UI updates
+- Proper error handling and loading states
