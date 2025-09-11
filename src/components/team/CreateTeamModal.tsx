@@ -3,10 +3,15 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
-import { Flag, Palette } from '@phosphor-icons/react'
+import { Flag, Palette, CalendarBlank, GameController, MapPin } from '@phosphor-icons/react'
+import { F1_2025_TRACKS, F1_GAMES, type F1Track } from '@/data/f1-tracks'
 
 interface CreateTeamModalProps {
   onClose: () => void
@@ -28,11 +33,36 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
   const { user } = useAuth()
   const [teamName, setTeamName] = useState('')
   const [selectedColor, setSelectedColor] = useState(teamColors[0])
+  const [selectedGame, setSelectedGame] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [selectedTracks, setSelectedTracks] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+
+  const handleTrackToggle = (trackId: string) => {
+    setSelectedTracks(prev => 
+      prev.includes(trackId)
+        ? prev.filter(id => id !== trackId)
+        : [...prev, trackId]
+    )
+  }
+
+  const selectAllTracks = () => {
+    setSelectedTracks(F1_2025_TRACKS.map(track => track.id))
+  }
+
+  const clearAllTracks = () => {
+    setSelectedTracks([])
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
+
+    if (selectedTracks.length === 0) {
+      toast.error('Please select at least one track for your league')
+      return
+    }
 
     setLoading(true)
 
@@ -44,6 +74,10 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
           color: selectedColor,
           user_id: user.id,
           points: 0,
+          game: selectedGame,
+          start_date: startDate,
+          end_date: endDate,
+          selected_tracks: selectedTracks,
         })
 
       if (error) throw error
@@ -59,65 +93,205 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-4xl max-h-[90vh] flex flex-col">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center mb-4">
             <Flag size={32} className="text-primary" weight="fill" />
           </div>
-          <CardTitle className="text-2xl">Create New Team</CardTitle>
+          <CardTitle className="text-2xl">Create New F1 League</CardTitle>
         </CardHeader>
         
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="team-name">Team Name</Label>
-              <Input
-                id="team-name"
-                type="text"
-                placeholder="Enter your team name"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                required
-                maxLength={50}
-              />
-            </div>
-
-            <div className="space-y-3">
-              <Label className="flex items-center gap-2">
-                <Palette size={16} />
-                Team Color
-              </Label>
-              <div className="grid grid-cols-4 gap-3">
-                {teamColors.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    className={`w-12 h-12 rounded-lg border-2 transition-all ${
-                      selectedColor === color
-                        ? 'border-ring scale-110'
-                        : 'border-border hover:scale-105'
-                    }`}
-                    style={{ backgroundColor: color }}
-                    onClick={() => setSelectedColor(color)}
+        <CardContent className="flex-1 overflow-hidden">
+          <form onSubmit={handleSubmit} className="space-y-6 h-full flex flex-col">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column */}
+              <div className="space-y-6">
+                {/* Team Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="team-name">Team Name</Label>
+                  <Input
+                    id="team-name"
+                    type="text"
+                    placeholder="Enter your team name"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    required
+                    maxLength={50}
                   />
-                ))}
+                </div>
+
+                {/* Game Selection */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <GameController size={16} />
+                    F1 Game Version
+                  </Label>
+                  <Select value={selectedGame} onValueChange={setSelectedGame} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select F1 game version" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {F1_GAMES.map((game) => (
+                        <SelectItem key={game.value} value={game.value}>
+                          {game.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Date Range */}
+                <div className="space-y-4">
+                  <Label className="flex items-center gap-2">
+                    <CalendarBlank size={16} />
+                    League Duration
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="start-date" className="text-sm text-muted-foreground">Start Date</Label>
+                      <Input
+                        id="start-date"
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="end-date" className="text-sm text-muted-foreground">End Date</Label>
+                      <Input
+                        id="end-date"
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        required
+                        min={startDate}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Team Color */}
+                <div className="space-y-3">
+                  <Label className="flex items-center gap-2">
+                    <Palette size={16} />
+                    Team Color
+                  </Label>
+                  <div className="grid grid-cols-4 gap-3">
+                    {teamColors.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={`w-12 h-12 rounded-lg border-2 transition-all ${
+                          selectedColor === color
+                            ? 'border-ring scale-110'
+                            : 'border-border hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setSelectedColor(color)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Track Selection */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <MapPin size={16} />
+                    Select Tracks ({selectedTracks.length}/24)
+                  </Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={selectAllTracks}
+                      className="text-xs"
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={clearAllTracks}
+                      className="text-xs"
+                    >
+                      Clear All
+                    </Button>
+                  </div>
+                </div>
+
+                <ScrollArea className="h-80 border rounded-lg p-4">
+                  <div className="space-y-3">
+                    {F1_2025_TRACKS.map((track) => (
+                      <div
+                        key={track.id}
+                        className="flex items-center space-x-3 p-2 hover:bg-muted/50 rounded-md"
+                      >
+                        <Checkbox
+                          id={track.id}
+                          checked={selectedTracks.includes(track.id)}
+                          onCheckedChange={() => handleTrackToggle(track.id)}
+                        />
+                        <Label
+                          htmlFor={track.id}
+                          className="flex-1 cursor-pointer flex items-center gap-2 text-sm"
+                        >
+                          <span className="text-lg">{track.flag}</span>
+                          <div className="flex-1">
+                            <div className="font-medium">{track.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {track.country} • {track.length}km • {track.laps} laps
+                            </div>
+                          </div>
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
             </div>
 
+            <Separator />
+
+            {/* Team Preview */}
             <div className="bg-muted p-4 rounded-lg">
-              <h4 className="font-medium mb-2">Team Preview</h4>
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-8 h-8 rounded-full"
-                  style={{ backgroundColor: selectedColor }}
-                />
-                <span className="font-medium">{teamName || 'Your Team Name'}</span>
+              <h4 className="font-medium mb-3">League Preview</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-6 h-6 rounded-full"
+                      style={{ backgroundColor: selectedColor }}
+                    />
+                    <span className="font-medium">{teamName || 'Your Team Name'}</span>
+                  </div>
+                  <div className="text-muted-foreground">
+                    {selectedGame ? F1_GAMES.find(g => g.value === selectedGame)?.label : 'Select game version'}
+                  </div>
+                </div>
+                <div className="space-y-1 text-muted-foreground">
+                  <div>
+                    Duration: {startDate && endDate ? `${startDate} to ${endDate}` : 'Select dates'}
+                  </div>
+                  <div>
+                    Tracks: {selectedTracks.length > 0 ? `${selectedTracks.length} selected` : 'None selected'}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <Button type="submit" className="flex-1" disabled={loading || !teamName.trim()}>
-                {loading ? 'Creating...' : 'Create Team'}
+            {/* Form Actions */}
+            <div className="flex gap-2 pt-4">
+              <Button 
+                type="submit" 
+                className="flex-1" 
+                disabled={loading || !teamName.trim() || !selectedGame || !startDate || !endDate || selectedTracks.length === 0}
+              >
+                {loading ? 'Creating League...' : 'Create League'}
               </Button>
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel

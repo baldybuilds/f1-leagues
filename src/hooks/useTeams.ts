@@ -8,6 +8,10 @@ interface Team {
   points: number
   user_id: string
   created_at: string
+  game?: string
+  start_date?: string
+  end_date?: string
+  selected_tracks?: string[]
 }
 
 export function useTeams() {
