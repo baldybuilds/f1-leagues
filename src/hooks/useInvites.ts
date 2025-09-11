@@ -23,8 +23,8 @@ export function useInvites() {
             id,
             name,
             game_version,
-            season_start_date,
-            season_end_date,
+            start_date,
+            end_date,
             created_by
           )
         `)
@@ -64,7 +64,7 @@ export function useInvites() {
       .from('team_invites')
       .insert({
         team_id: teamId,
-        invited_by: user.id,
+        inviter_id: user.id,
         invitee_email: inviteeEmail.toLowerCase(),
         status: 'pending'
       })
@@ -97,7 +97,7 @@ export function useInvites() {
         .insert({
           team_id: invite.team_id,
           user_id: user.id,
-          role: 'member'
+          driver_name: user.email?.split('@')[0] || 'Driver'
         })
 
       if (memberError) throw memberError

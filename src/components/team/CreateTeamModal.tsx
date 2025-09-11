@@ -95,8 +95,8 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
         .insert({
           name: teamName,
           game_version: selectedGame,
-          season_start_date: startDate,
-          season_end_date: endDate,
+          start_date: startDate,
+          end_date: endDate,
           created_by: user.id,
         })
         .select()
@@ -108,7 +108,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
       const teamTrackInserts = selectedTracks.map((trackId, index) => ({
         team_id: teamData.id,
         track_id: trackId,
-        race_order: index + 1
+        round_number: index + 1
       }))
 
       const { error: trackError } = await supabase
@@ -123,7 +123,6 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
         .insert({
           team_id: teamData.id,
           user_id: user.id,
-          role: 'admin',
           driver_name: user.email?.split('@')[0] || 'Team Owner',
           team_name: teamName
         })
