@@ -18,30 +18,45 @@ export type Database = {
         Row: {
           id: string
           name: string
-          game: string
-          start_date: string
-          end_date: string
-          owner_id: string
+          description: string | null
+          game_version: string
+          season_start_date: string
+          season_end_date: string
+          created_by: string
+          invite_code: string
+          scoring_system: any
+          points_for_fastest_lap: number
+          points_for_pole_position: number
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           name: string
-          game: string
-          start_date: string
-          end_date: string
-          owner_id: string
+          description?: string | null
+          game_version: string
+          season_start_date: string
+          season_end_date: string
+          created_by: string
+          invite_code?: string
+          scoring_system?: any
+          points_for_fastest_lap?: number
+          points_for_pole_position?: number
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           name?: string
-          game?: string
-          start_date?: string
-          end_date?: string
-          owner_id?: string
+          description?: string | null
+          game_version?: string
+          season_start_date?: string
+          season_end_date?: string
+          created_by?: string
+          invite_code?: string
+          scoring_system?: any
+          points_for_fastest_lap?: number
+          points_for_pole_position?: number
           created_at?: string
           updated_at?: string
         }
@@ -81,24 +96,30 @@ export type Database = {
           team_id: string
           user_id: string
           role: 'admin' | 'member'
-          created_at: string
-          updated_at: string
+          driver_name: string
+          team_name: string | null
+          car_number: number | null
+          joined_at: string
         }
         Insert: {
           id?: string
           team_id: string
           user_id: string
           role?: 'admin' | 'member'
-          created_at?: string
-          updated_at?: string
+          driver_name: string
+          team_name?: string | null
+          car_number?: number | null
+          joined_at?: string
         }
         Update: {
           id?: string
           team_id?: string
           user_id?: string
           role?: 'admin' | 'member'
-          created_at?: string
-          updated_at?: string
+          driver_name?: string
+          team_name?: string | null
+          car_number?: number | null
+          joined_at?: string
         }
       }
       tracks: {
@@ -108,7 +129,8 @@ export type Database = {
           country: string
           location: string
           season: number
-          round_number: number
+          circuit_length: number | null
+          lap_record: string | null
           created_at: string
         }
         Insert: {
@@ -117,7 +139,8 @@ export type Database = {
           country: string
           location: string
           season?: number
-          round_number: number
+          circuit_length?: number | null
+          lap_record?: string | null
           created_at?: string
         }
         Update: {
@@ -126,7 +149,8 @@ export type Database = {
           country?: string
           location?: string
           season?: number
-          round_number?: number
+          circuit_length?: number | null
+          lap_record?: string | null
           created_at?: string
         }
       }
@@ -135,18 +159,24 @@ export type Database = {
           id: string
           team_id: string
           track_id: string
+          race_order: number
+          race_date: string | null
           created_at: string
         }
         Insert: {
           id?: string
           team_id: string
           track_id: string
+          race_order: number
+          race_date?: string | null
           created_at?: string
         }
         Update: {
           id?: string
           team_id?: string
           track_id?: string
+          race_order?: number
+          race_date?: string | null
           created_at?: string
         }
       }

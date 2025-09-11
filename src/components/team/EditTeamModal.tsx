@@ -18,11 +18,11 @@ import { toast } from 'sonner'
 interface Team {
   id: string
   name: string
-  game: string
-  start_date: string
-  end_date: string
+  game_version: string
+  season_start_date: string
+  season_end_date: string
   tracks: string[]
-  owner_id: string
+  created_by: string
   created_at: string
   updated_at: string
 }
@@ -37,9 +37,9 @@ interface EditTeamModalProps {
 export function EditTeamModal({ team, onClose, onTeamUpdated, onTeamDeleted }: EditTeamModalProps) {
   const [teams, setTeams] = useKV<Team[]>('teams', [])
   const [teamName, setTeamName] = useState(team.name)
-  const [selectedGame, setSelectedGame] = useState(team.game)
-  const [startDate, setStartDate] = useState(team.start_date)
-  const [endDate, setEndDate] = useState(team.end_date)
+  const [selectedGame, setSelectedGame] = useState(team.game_version)
+  const [startDate, setStartDate] = useState(team.season_start_date)
+  const [endDate, setEndDate] = useState(team.season_end_date)
   const [selectedTracks, setSelectedTracks] = useState<string[]>(team.tracks || [])
   const [loading, setLoading] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)

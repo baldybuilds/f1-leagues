@@ -127,7 +127,7 @@ export function AddRaceResultModal({ teamId, preselectedTrack, onClose, onResult
               </Select>
               {selectedTrack && (
                 <p className="text-xs text-muted-foreground">
-                  {selectedTrack.location}, {selectedTrack.country} • Round {selectedTrack.round_number}
+                  {selectedTrack.location}, {selectedTrack.country}
                 </p>
               )}
             </div>

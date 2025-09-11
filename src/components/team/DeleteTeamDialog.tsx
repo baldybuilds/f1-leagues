@@ -15,11 +15,11 @@ import { toast } from 'sonner'
 interface Team {
   id: string
   name: string
-  game: string
-  start_date: string
-  end_date: string
+  game_version: string
+  season_start_date: string
+  season_end_date: string
   tracks: string[]
-  owner_id: string
+  created_by: string
   created_at: string
   updated_at: string
 }

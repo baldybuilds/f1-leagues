@@ -17,11 +17,11 @@ import { Flag, Trophy, ChevronDown, ChevronUp, CalendarBlank, GameController, Cr
 interface Team {
   id: string
   name: string
-  game: string
-  start_date: string
-  end_date: string
+  game_version: string
+  season_start_date: string
+  season_end_date: string
   tracks: string[]
-  owner_id: string
+  created_by: string
   created_at: string
   updated_at: string
   points?: number
@@ -49,8 +49,8 @@ export function TeamCard({ team, isOwner, isAdmin, onTeamUpdated, onTeamDeleted 
     { value: 'F1 25', label: 'F1 25' }
   ]
 
-  const selectedGame = team.game ? F1_GAMES.find(g => g.value === team.game) : null
-  const hasDateRange = team.start_date && team.end_date
+  const selectedGame = team.game_version ? F1_GAMES.find(g => g.value === team.game_version) : null
+  const hasDateRange = team.season_start_date && team.season_end_date
   const tracksCount = team.tracks?.length || 0
   const canManageTeam = isOwner || isAdmin
 
@@ -178,7 +178,7 @@ export function TeamCard({ team, isOwner, isAdmin, onTeamUpdated, onTeamDeleted 
               {hasDateRange && (
                 <div className="flex items-center gap-1">
                   <CalendarBlank size={12} />
-                  {new Date(team.start_date).toLocaleDateString()} - {new Date(team.end_date).toLocaleDateString()}
+                  {new Date(team.season_start_date).toLocaleDateString()} - {new Date(team.season_end_date).toLocaleDateString()}
                 </div>
               )}
               {tracksCount > 0 && (

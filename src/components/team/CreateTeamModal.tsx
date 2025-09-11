@@ -23,7 +23,6 @@ interface Track {
   country: string
   location: string
   season: number
-  round_number: number
 }
 
 const F1_GAMES = [
@@ -48,7 +47,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
         .from('tracks')
         .select('*')
         .eq('season', 2025)
-        .order('round_number')
+        .order('name')
 
       if (error) {
         console.error('Error fetching tracks:', error)
@@ -95,10 +94,10 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
         .from('teams')
         .insert({
           name: teamName,
-          game: selectedGame,
-          start_date: startDate,
-          end_date: endDate,
-          owner_id: user.id,
+          game_version: selectedGame,
+          season_start_date: startDate,
+          season_end_date: endDate,
+          created_by: user.id,
         })
         .select()
         .single()
@@ -106,9 +105,10 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
       if (teamError) throw teamError
 
       // Insert team-track relationships
-      const teamTrackInserts = selectedTracks.map(trackId => ({
+      const teamTrackInserts = selectedTracks.map((trackId, index) => ({
         team_id: teamData.id,
-        track_id: trackId
+        track_id: trackId,
+        race_order: index + 1
       }))
 
       const { error: trackError } = await supabase
@@ -123,7 +123,9 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
         .insert({
           team_id: teamData.id,
           user_id: user.id,
-          role: 'admin'
+          role: 'admin',
+          driver_name: user.email?.split('@')[0] || 'Team Owner',
+          team_name: teamName
         })
 
       if (memberError) throw memberError
@@ -278,7 +280,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
                           <div className="flex-1">
                             <div className="font-medium">{track.name}</div>
                             <div className="text-xs text-muted-foreground">
-                              {track.location}, {track.country} • Round {track.round_number}
+                              {track.location}, {track.country}
                             </div>
                           </div>
                         </Label>

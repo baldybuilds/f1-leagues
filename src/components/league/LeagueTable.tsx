@@ -5,10 +5,10 @@ import { Trophy, Medal, Award } from '@phosphor-icons/react'
 interface Team {
   id: string
   name: string
-  game: string
-  start_date: string
-  end_date: string
-  owner_id: string
+  game_version: string
+  season_start_date: string
+  season_end_date: string
+  created_by: string
   created_at: string
   updated_at: string
   points?: number

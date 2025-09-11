@@ -5,10 +5,10 @@ import { useAuth } from '@/contexts/AuthContext'
 interface Team {
   id: string
   name: string
-  game: string
-  start_date: string
-  end_date: string
-  owner_id: string
+  game_version: string
+  season_start_date: string
+  season_end_date: string
+  created_by: string
   created_at: string
   updated_at: string
   // These will be calculated/joined fields
@@ -57,7 +57,7 @@ export function useTeams() {
       // Process teams to calculate total points, track count, and user role
       const processedTeams = (allTeams || [])
         .map(team => {
-          const userRole = team.owner_id === user.id 
+          const userRole = team.created_by === user.id 
             ? 'owner' 
             : membershipMap.get(team.id) || null
 
