@@ -1,31 +1,34 @@
--- QualiPal F1 League Manager Database - Final Complete Fix
--- This script completely rebuilds the database schema with proper RLS policies
--- and fixes all circular dependency issues
+-- QualiPal F1 League Manager - Complete Database Rebuild
+-- This script completely rebuilds the database from scratch with proper constraints
 
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Drop existing policies that cause circular references
-DROP POLICY IF EXISTS "teams_policy" ON public.teams;
-DROP POLICY IF EXISTS "team_members_policy" ON public.team_members;
-DROP POLICY IF EXISTS "team_tracks_policy" ON public.team_tracks;
-DROP POLICY IF EXISTS "race_sessions_policy" ON public.race_sessions;
-DROP POLICY IF EXISTS "race_results_policy" ON public.race_results;
-DROP POLICY IF EXISTS "team_invites_policy" ON public.team_invites;
-DROP POLICY IF EXISTS "tracks_policy" ON public.tracks;
+-- Drop all existing tables in correct order (respecting foreign key dependencies)
+DROP TABLE IF EXISTS public.race_results CASCADE;
+DROP TABLE IF EXISTS public.race_sessions CASCADE;
+DROP TABLE IF EXISTS public.team_tracks CASCADE;
+DROP TABLE IF EXISTS public.team_invites CASCADE;
+DROP TABLE IF EXISTS public.team_members CASCADE;
+DROP TABLE IF EXISTS public.tracks CASCADE;
+DROP TABLE IF EXISTS public.teams CASCADE;
 
--- Also drop policies with old names that might exist
-DROP POLICY IF EXISTS "Team creators can delete teams" ON public.teams;
-DROP POLICY IF EXISTS "Team creators can manage team tracks" ON public.team_tracks;
-DROP POLICY IF EXISTS "Users can read their team invites" ON public.team_invites;
-DROP POLICY IF EXISTS "Team creators can manage invites" ON public.team_invites;
+-- Create tracks table first (no dependencies)
+CREATE TABLE public.tracks (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  country TEXT NOT NULL,
+  location TEXT NOT NULL,
+  season INTEGER NOT NULL DEFAULT 2025,
+  round_number INTEGER,
+  circuit_length DECIMAL(5,3),
+  lap_record TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(name, country, season)
+);
 
--- First, let's ensure all tables exist with correct structure
-
--- Users table (handled by Supabase Auth)
-
--- Teams table
-CREATE TABLE IF NOT EXISTS public.teams (
+-- Create teams table
+CREATE TABLE public.teams (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   game_version TEXT NOT NULL CHECK (game_version IN ('F1 24', 'F1 25')),
@@ -45,8 +48,8 @@ CREATE TABLE IF NOT EXISTS public.teams (
   minimum_races_for_championship INTEGER DEFAULT 1
 );
 
--- Team members table
-CREATE TABLE IF NOT EXISTS public.team_members (
+-- Create team members table
+CREATE TABLE public.team_members (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -58,8 +61,8 @@ CREATE TABLE IF NOT EXISTS public.team_members (
   UNIQUE(team_id, car_number)
 );
 
--- Team invites table  
-CREATE TABLE IF NOT EXISTS public.team_invites (
+-- Create team invites table
+CREATE TABLE public.team_invites (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
   invitee_email TEXT NOT NULL,
@@ -71,21 +74,8 @@ CREATE TABLE IF NOT EXISTS public.team_invites (
   UNIQUE(team_id, invitee_email)
 );
 
--- Tracks table
-CREATE TABLE IF NOT EXISTS public.tracks (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL,
-  country TEXT NOT NULL,
-  location TEXT NOT NULL,
-  season INTEGER NOT NULL DEFAULT 2025,
-  round_number INTEGER,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  circuit_length DECIMAL(5,3),
-  lap_record TEXT
-);
-
--- Team tracks table (which tracks are selected for a team's season)
-CREATE TABLE IF NOT EXISTS public.team_tracks (
+-- Create team tracks table (which tracks are selected for a team's season)
+CREATE TABLE public.team_tracks (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
   track_id UUID NOT NULL REFERENCES public.tracks(id) ON DELETE CASCADE,
@@ -95,8 +85,8 @@ CREATE TABLE IF NOT EXISTS public.team_tracks (
   UNIQUE(team_id, round_number)
 );
 
--- Race sessions table
-CREATE TABLE IF NOT EXISTS public.race_sessions (
+-- Create race sessions table
+CREATE TABLE public.race_sessions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
   track_id UUID NOT NULL REFERENCES public.tracks(id) ON DELETE CASCADE,
@@ -108,8 +98,8 @@ CREATE TABLE IF NOT EXISTS public.race_sessions (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Race results table
-CREATE TABLE IF NOT EXISTS public.race_results (
+-- Create race results table
+CREATE TABLE public.race_results (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   session_id UUID NOT NULL REFERENCES public.race_sessions(id) ON DELETE CASCADE,
   team_member_id UUID NOT NULL REFERENCES public.team_members(id) ON DELETE CASCADE,
@@ -153,8 +143,7 @@ INSERT INTO public.tracks (name, country, location, season, round_number, circui
 ('Autodromo Jose Carlos Pace', 'Brazil', 'Sao Paulo', 2025, 21, 4.309, '1:10.540'),
 ('Las Vegas Strip Circuit', 'United States', 'Las Vegas', 2025, 22, 6.201, '1:35.490'),
 ('Losail International Circuit', 'Qatar', 'Lusail', 2025, 23, 5.380, '1:24.319'),
-('Yas Marina Circuit', 'United Arab Emirates', 'Abu Dhabi', 2025, 24, 5.281, '1:26.103')
-ON CONFLICT (name, country, season) DO NOTHING;
+('Yas Marina Circuit', 'United Arab Emirates', 'Abu Dhabi', 2025, 24, 5.281, '1:26.103');
 
 -- Create or replace the update_updated_at_column function
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
@@ -166,22 +155,18 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Add triggers for updated_at columns
-DROP TRIGGER IF EXISTS update_teams_updated_at ON public.teams;
 CREATE TRIGGER update_teams_updated_at 
   BEFORE UPDATE ON public.teams 
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_team_invites_updated_at ON public.team_invites;
 CREATE TRIGGER update_team_invites_updated_at 
   BEFORE UPDATE ON public.team_invites 
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_race_sessions_updated_at ON public.race_sessions;
 CREATE TRIGGER update_race_sessions_updated_at 
   BEFORE UPDATE ON public.race_sessions 
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_race_results_updated_at ON public.race_results;
 CREATE TRIGGER update_race_results_updated_at 
   BEFORE UPDATE ON public.race_results 
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -198,158 +183,146 @@ ALTER TABLE public.race_results ENABLE ROW LEVEL SECURITY;
 -- Create simple, non-recursive RLS policies
 
 -- Teams: Users can only see and modify teams they created
-CREATE POLICY "users_can_manage_own_teams" ON public.teams
+CREATE POLICY "teams_policy" ON public.teams
 FOR ALL TO authenticated
-USING (created_by = auth.uid());
+USING (created_by = auth.uid())
+WITH CHECK (created_by = auth.uid());
 
 -- Team members: Users can see memberships for teams they created or are members of
-CREATE POLICY "users_can_view_team_members" ON public.team_members
+CREATE POLICY "team_members_select_policy" ON public.team_members
 FOR SELECT TO authenticated
 USING (
   user_id = auth.uid() OR
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid())
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
 
 -- Team members: Users can insert themselves or team creators can add members
-CREATE POLICY "users_can_join_teams" ON public.team_members
+CREATE POLICY "team_members_insert_policy" ON public.team_members
 FOR INSERT TO authenticated
 WITH CHECK (
   user_id = auth.uid() OR
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid())
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
 
 -- Team members: Users can update their own membership, team creators can update any
-CREATE POLICY "users_can_update_team_members" ON public.team_members
+CREATE POLICY "team_members_update_policy" ON public.team_members
 FOR UPDATE TO authenticated
 USING (
   user_id = auth.uid() OR
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid())
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
 
 -- Team members: Users can delete their own membership, team creators can delete any
-CREATE POLICY "users_can_delete_team_members" ON public.team_members
+CREATE POLICY "team_members_delete_policy" ON public.team_members
 FOR DELETE TO authenticated
 USING (
   user_id = auth.uid() OR
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid())
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
 
--- Team invites: Users can see invites sent to them, team creators can see their team's invites
-CREATE POLICY "users_can_view_relevant_invites" ON public.team_invites
+-- Team invites: Users can see invites sent to them or their teams
+CREATE POLICY "team_invites_select_policy" ON public.team_invites
 FOR SELECT TO authenticated
 USING (
   invitee_email = (SELECT email FROM auth.users WHERE id = auth.uid()) OR
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid())
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
 
 -- Team invites: Only team creators can create invites
-CREATE POLICY "team_creators_can_send_invites" ON public.team_invites
+CREATE POLICY "team_invites_insert_policy" ON public.team_invites
 FOR INSERT TO authenticated
 WITH CHECK (
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid())
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
 
--- Team invites: Users can update invites sent to them, team creators can update their team's invites
-CREATE POLICY "users_can_update_relevant_invites" ON public.team_invites
+-- Team invites: Users can update invites sent to them, team creators can update their teams
+CREATE POLICY "team_invites_update_policy" ON public.team_invites
 FOR UPDATE TO authenticated
 USING (
   invitee_email = (SELECT email FROM auth.users WHERE id = auth.uid()) OR
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid())
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
 
 -- Team invites: Team creators can delete their team's invites
-CREATE POLICY "team_creators_can_delete_invites" ON public.team_invites
+CREATE POLICY "team_invites_delete_policy" ON public.team_invites
 FOR DELETE TO authenticated
 USING (
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid())
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
 
 -- Tracks: Everyone can read tracks (they're global data)
-CREATE POLICY "tracks_are_readable_by_all" ON public.tracks
+CREATE POLICY "tracks_policy" ON public.tracks
 FOR SELECT TO authenticated
 USING (true);
 
--- Team tracks: Users can see tracks for teams they created or are members of
-CREATE POLICY "users_can_view_team_tracks" ON public.team_tracks
+-- Team tracks: Users can see tracks for their teams
+CREATE POLICY "team_tracks_select_policy" ON public.team_tracks
 FOR SELECT TO authenticated
 USING (
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid()) OR
-  EXISTS (SELECT 1 FROM public.team_members WHERE team_id = team_tracks.team_id AND user_id = auth.uid())
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()) OR
+  team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
 );
 
 -- Team tracks: Only team creators can manage team tracks
-CREATE POLICY "team_creators_can_manage_team_tracks" ON public.team_tracks
+CREATE POLICY "team_tracks_modify_policy" ON public.team_tracks
 FOR ALL TO authenticated
-USING (
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid())
-)
-WITH CHECK (
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid())
-);
+USING (team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()))
+WITH CHECK (team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()));
 
--- Race sessions: Users can see sessions for teams they created or are members of
-CREATE POLICY "users_can_view_race_sessions" ON public.race_sessions
+-- Race sessions: Users can see sessions for their teams
+CREATE POLICY "race_sessions_select_policy" ON public.race_sessions
 FOR SELECT TO authenticated
 USING (
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid()) OR
-  EXISTS (SELECT 1 FROM public.team_members WHERE team_id = race_sessions.team_id AND user_id = auth.uid())
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()) OR
+  team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
 );
 
 -- Race sessions: Only team creators can manage race sessions
-CREATE POLICY "team_creators_can_manage_race_sessions" ON public.race_sessions
+CREATE POLICY "race_sessions_modify_policy" ON public.race_sessions
 FOR ALL TO authenticated
-USING (
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid())
-)
-WITH CHECK (
-  EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND created_by = auth.uid())
-);
+USING (team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()))
+WITH CHECK (team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()));
 
--- Race results: Users can see results for teams they created or are members of
-CREATE POLICY "users_can_view_race_results" ON public.race_results
+-- Race results: Users can see results for their teams
+CREATE POLICY "race_results_select_policy" ON public.race_results
 FOR SELECT TO authenticated
 USING (
-  EXISTS (
-    SELECT 1 FROM public.race_sessions rs
-    JOIN public.teams t ON rs.team_id = t.id
-    WHERE rs.id = session_id AND (
-      t.created_by = auth.uid() OR
-      EXISTS (SELECT 1 FROM public.team_members WHERE team_id = t.id AND user_id = auth.uid())
-    )
+  session_id IN (
+    SELECT rs.id FROM public.race_sessions rs
+    WHERE rs.team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()) OR
+          rs.team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
   )
 );
 
 -- Race results: Only team creators can manage race results
-CREATE POLICY "team_creators_can_manage_race_results" ON public.race_results
+CREATE POLICY "race_results_modify_policy" ON public.race_results
 FOR ALL TO authenticated
 USING (
-  EXISTS (
-    SELECT 1 FROM public.race_sessions rs
-    JOIN public.teams t ON rs.team_id = t.id
-    WHERE rs.id = session_id AND t.created_by = auth.uid()
+  session_id IN (
+    SELECT rs.id FROM public.race_sessions rs
+    WHERE rs.team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
   )
 )
 WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM public.race_sessions rs
-    JOIN public.teams t ON rs.team_id = t.id
-    WHERE rs.id = session_id AND t.created_by = auth.uid()
+  session_id IN (
+    SELECT rs.id FROM public.race_sessions rs
+    WHERE rs.team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
   )
 );
 
 -- Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_teams_created_by ON public.teams(created_by);
-CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON public.team_members(team_id);
-CREATE INDEX IF NOT EXISTS idx_team_members_user_id ON public.team_members(user_id);
-CREATE INDEX IF NOT EXISTS idx_team_invites_team_id ON public.team_invites(team_id);
-CREATE INDEX IF NOT EXISTS idx_team_invites_invitee_email ON public.team_invites(invitee_email);
-CREATE INDEX IF NOT EXISTS idx_team_invites_status ON public.team_invites(status);
-CREATE INDEX IF NOT EXISTS idx_team_tracks_team_id ON public.team_tracks(team_id);
-CREATE INDEX IF NOT EXISTS idx_team_tracks_track_id ON public.team_tracks(track_id);
-CREATE INDEX IF NOT EXISTS idx_race_sessions_team_id ON public.race_sessions(team_id);
-CREATE INDEX IF NOT EXISTS idx_race_sessions_track_id ON public.race_sessions(track_id);
-CREATE INDEX IF NOT EXISTS idx_race_results_session_id ON public.race_results(session_id);
-CREATE INDEX IF NOT EXISTS idx_race_results_team_member_id ON public.race_results(team_member_id);
+CREATE INDEX idx_teams_created_by ON public.teams(created_by);
+CREATE INDEX idx_team_members_team_id ON public.team_members(team_id);
+CREATE INDEX idx_team_members_user_id ON public.team_members(user_id);
+CREATE INDEX idx_team_invites_team_id ON public.team_invites(team_id);
+CREATE INDEX idx_team_invites_invitee_email ON public.team_invites(invitee_email);
+CREATE INDEX idx_team_invites_status ON public.team_invites(status);
+CREATE INDEX idx_team_tracks_team_id ON public.team_tracks(team_id);
+CREATE INDEX idx_team_tracks_track_id ON public.team_tracks(track_id);
+CREATE INDEX idx_race_sessions_team_id ON public.race_sessions(team_id);
+CREATE INDEX idx_race_sessions_track_id ON public.race_sessions(track_id);
+CREATE INDEX idx_race_results_session_id ON public.race_results(session_id);
+CREATE INDEX idx_race_results_team_member_id ON public.race_results(team_member_id);
 
 -- Grant proper permissions
 GRANT USAGE ON SCHEMA public TO authenticated;

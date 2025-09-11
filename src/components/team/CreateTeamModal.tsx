@@ -28,7 +28,7 @@ interface Track {
 export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps) {
   const { user } = useAuth()
   const [teamName, setTeamName] = useState('')
-  const [selectedGame, setSelectedGame] = useState<'F1_24' | 'F1_25' | ''>('')
+  const [selectedGame, setSelectedGame] = useState<'F1 24' | 'F1 25' | ''>('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedTracks, setSelectedTracks] = useState<string[]>([])
@@ -89,7 +89,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
         .from('teams')
         .insert({
           name: teamName,
-          game: selectedGame,
+          game_version: selectedGame,
           start_date: startDate,
           end_date: endDate,
           created_by: user.id,
@@ -103,7 +103,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
       const teamTrackInserts = selectedTracks.map((trackId, index) => ({
         team_id: teamData.id,
         track_id: trackId,
-        race_order: index + 1
+        round_number: index + 1
       }))
 
       const { error: trackError } = await supabase
@@ -157,13 +157,13 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
                     <GameController size={16} />
                     F1 Game Version
                   </Label>
-                  <Select value={selectedGame} onValueChange={(value: 'F1_24' | 'F1_25') => setSelectedGame(value)} required>
+                  <Select value={selectedGame} onValueChange={(value: 'F1 24' | 'F1 25') => setSelectedGame(value)} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select F1 game version" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="F1_24">F1 24</SelectItem>
-                      <SelectItem value="F1_25">F1 25</SelectItem>
+                      <SelectItem value="F1 24">F1 24</SelectItem>
+                      <SelectItem value="F1 25">F1 25</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -281,7 +281,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
                     <span className="font-medium">{teamName || 'Your Team Name'}</span>
                   </div>
                   <div className="text-muted-foreground">
-                    {selectedGame ? (selectedGame === 'F1_24' ? 'F1 24' : 'F1 25') : 'Select game version'}
+                    {selectedGame ? selectedGame : 'Select game version'}
                   </div>
                 </div>
                 <div className="space-y-1 text-muted-foreground">

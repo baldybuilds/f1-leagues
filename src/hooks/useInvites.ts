@@ -5,9 +5,9 @@ import { useAuth } from '@/contexts/AuthContext'
 interface TeamInvite {
   id: string
   team_id: string
-  invited_by: string
-  invited_email: string
-  status: 'pending' | 'accepted' | 'rejected'
+  inviter_id: string
+  invitee_email: string
+  status: 'pending' | 'accepted' | 'declined'
   created_at: string
   expires_at: string
 }
@@ -16,7 +16,7 @@ interface InviteWithTeam extends TeamInvite {
   team: {
     id: string
     name: string
-    game: 'F1_24' | 'F1_25'
+    game_version: 'F1 24' | 'F1 25'
     start_date: string
     end_date: string
     created_by: string
@@ -42,13 +42,13 @@ export function useInvites() {
           team:teams(
             id,
             name,
-            game,
+            game_version,
             start_date,
             end_date,
             created_by
           )
         `)
-        .eq('invited_email', user.email)
+        .eq('invitee_email', user.email)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
 
@@ -72,7 +72,7 @@ export function useInvites() {
       .from('team_invites')
       .select('id')
       .eq('team_id', teamId)
-      .eq('invited_email', inviteeEmail)
+      .eq('invitee_email', inviteeEmail)
       .eq('status', 'pending')
       .single()
 
@@ -84,8 +84,8 @@ export function useInvites() {
       .from('team_invites')
       .insert({
         team_id: teamId,
-        invited_by: user.id,
-        invited_email: inviteeEmail.toLowerCase(),
+        inviter_id: user.id,
+        invitee_email: inviteeEmail.toLowerCase(),
         status: 'pending'
       })
       .select()
@@ -95,7 +95,7 @@ export function useInvites() {
     return data
   }
 
-  const respondToInvite = async (inviteId: string, status: 'accepted' | 'rejected') => {
+  const respondToInvite = async (inviteId: string, status: 'accepted' | 'declined') => {
     if (!user?.id) throw new Error('User not authenticated')
 
     const { data: invite, error: updateError } = await supabase
@@ -114,7 +114,7 @@ export function useInvites() {
         .insert({
           team_id: invite.team_id,
           user_id: user.id,
-          is_admin: false
+          driver_name: user.email?.split('@')[0] || 'Driver'
         })
 
       if (memberError) throw memberError
@@ -136,7 +136,7 @@ export function useInvites() {
             event: '*', 
             schema: 'public', 
             table: 'team_invites',
-            filter: `invited_email=eq.${user.email}`
+            filter: `invitee_email=eq.${user.email}`
           },
           () => {
             fetchInvites()

@@ -5,14 +5,14 @@ import { useAuth } from '@/contexts/AuthContext'
 interface Team {
   id: string
   name: string
-  game: 'F1_24' | 'F1_25'
+  game_version: 'F1 24' | 'F1 25'
   start_date: string
   end_date: string
   created_by: string
   created_at: string
   updated_at: string
   track_count?: number
-  is_admin?: boolean
+  is_creator?: boolean
 }
 
 export function useTeams() {
@@ -27,31 +27,30 @@ export function useTeams() {
     try {
       setLoading(true)
       
-      // Get teams where user is a member
+      // Get teams where user is creator or member
       const { data: teamsData, error: teamsError } = await supabase
         .from('teams')
         .select(`
           *,
-          team_tracks(id),
-          team_members!inner(is_admin)
+          team_tracks(id)
         `)
-        .eq('team_members.user_id', user.id)
+        .or(`created_by.eq.${user.id},id.in.(select team_id from team_members where user_id.eq.${user.id})`)
         .order('created_at', { ascending: false })
 
       if (teamsError) throw teamsError
 
-      // Process teams to add track count and admin status
+      // Process teams to add track count and creator status
       const processedTeams = (teamsData || []).map(team => ({
         id: team.id,
         name: team.name,
-        game: team.game,
+        game_version: team.game_version,
         start_date: team.start_date,
         end_date: team.end_date,
         created_by: team.created_by,
         created_at: team.created_at,
         updated_at: team.updated_at,
         track_count: team.team_tracks?.length || 0,
-        is_admin: team.team_members?.[0]?.is_admin || false
+        is_creator: team.created_by === user.id
       }))
 
       setTeams(processedTeams)

@@ -9,42 +9,41 @@ import { Flag, ChevronDown, ChevronUp, CalendarBlank, GameController, Crown, Use
 interface Team {
   id: string
   name: string
-  game: 'F1_24' | 'F1_25'
+  game_version: 'F1 24' | 'F1 25'
   start_date: string
   end_date: string
   created_by: string
   created_at: string
   updated_at: string
   track_count?: number
-  is_admin?: boolean
+  is_creator?: boolean
 }
 
 interface TeamCardProps {
   team: Team
   isOwner: boolean
-  isAdmin: boolean
   onTeamUpdated?: () => void
   onTeamDeleted?: () => void
 }
 
-export function TeamCard({ team, isOwner, isAdmin }: TeamCardProps) {
+export function TeamCard({ team, isOwner }: TeamCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
 
-  const canManageTeam = isOwner || isAdmin
+  const canManageTeam = isOwner || team.is_creator
 
   const getRoleIcon = () => {
-    if (isOwner) return <Crown size={12} className="text-primary" />
+    if (isOwner || team.is_creator) return <Crown size={12} className="text-primary" />
     return <User size={12} className="text-muted-foreground" />
   }
 
   const getRoleText = () => {
-    if (isOwner) return 'Owner'
+    if (isOwner || team.is_creator) return 'Owner'
     return 'Member'
   }
 
   const getGameLabel = () => {
-    return team.game === 'F1_24' ? 'F1 24' : 'F1 25'
+    return team.game_version
   }
 
   return (
@@ -59,7 +58,7 @@ export function TeamCard({ team, isOwner, isAdmin }: TeamCardProps) {
               <div>
                 <CardTitle className="text-lg">{team.name}</CardTitle>
                 <CardDescription className="flex items-center gap-1">
-                  <Badge variant={isOwner ? "default" : "secondary"} className="text-xs">
+                  <Badge variant={(isOwner || team.is_creator) ? "default" : "secondary"} className="text-xs">
                     {getRoleIcon()}
                     <span className="ml-1">{getRoleText()}</span>
                   </Badge>

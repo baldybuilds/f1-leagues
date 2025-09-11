@@ -122,7 +122,6 @@ export function Dashboard() {
                               key={team.id} 
                               team={team} 
                               isOwner={true}
-                              isAdmin={team.is_admin || false}
                               onTeamUpdated={handleTeamUpdated}
                               onTeamDeleted={handleTeamDeleted}
                             />
@@ -143,7 +142,6 @@ export function Dashboard() {
                               key={team.id} 
                               team={team} 
                               isOwner={false}
-                              isAdmin={team.is_admin || false}
                               onTeamUpdated={handleTeamUpdated}
                               onTeamDeleted={handleTeamDeleted}
                             />
