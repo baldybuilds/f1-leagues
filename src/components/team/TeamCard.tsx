@@ -10,7 +10,8 @@ import { DriverStandings } from './DriverStandings'
 import { AnalyticsSummary } from './AnalyticsSummary'
 import { TeamMembers } from './TeamMembers'
 import { AddRaceResultModal } from './AddRaceResultModal'
-import { Flag, Trophy, ChevronDown, ChevronUp, CalendarBlank, GameController, Crown, Shield, User, UserPlus } from '@phosphor-icons/react'
+import { EditTeamModal } from './EditTeamModal'
+import { Flag, Trophy, ChevronDown, ChevronUp, CalendarBlank, GameController, Crown, Shield, User, UserPlus, Gear } from '@phosphor-icons/react'
 
 interface Team {
   id: string
@@ -18,6 +19,7 @@ interface Team {
   game: string
   start_date: string
   end_date: string
+  tracks: string[]
   owner_id: string
   created_at: string
   updated_at: string
@@ -30,11 +32,14 @@ interface TeamCardProps {
   team: Team
   isOwner: boolean
   isAdmin: boolean
+  onTeamUpdated?: () => void
+  onTeamDeleted?: () => void
 }
 
-export function TeamCard({ team, isOwner, isAdmin }: TeamCardProps) {
+export function TeamCard({ team, isOwner, isAdmin, onTeamUpdated, onTeamDeleted }: TeamCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [showAddResult, setShowAddResult] = useState(false)
+  const [showEditTeam, setShowEditTeam] = useState(false)
   const [preselectedTrack, setPreselectedTrack] = useState<string>('')
 
   const F1_GAMES = [
@@ -44,7 +49,7 @@ export function TeamCard({ team, isOwner, isAdmin }: TeamCardProps) {
 
   const selectedGame = team.game ? F1_GAMES.find(g => g.value === team.game) : null
   const hasDateRange = team.start_date && team.end_date
-  const tracksCount = team.track_count || 0
+  const tracksCount = team.tracks?.length || 0
   const canManageTeam = isOwner || isAdmin
 
   const handleResultAdded = () => {
@@ -56,6 +61,11 @@ export function TeamCard({ team, isOwner, isAdmin }: TeamCardProps) {
   const handleAddResultFromCalendar = (trackId: string) => {
     setPreselectedTrack(trackId)
     setShowAddResult(true)
+  }
+
+  const handleTeamUpdated = () => {
+    setShowEditTeam(false)
+    onTeamUpdated?.()
   }
 
   const getRoleIcon = () => {
@@ -89,12 +99,24 @@ export function TeamCard({ team, isOwner, isAdmin }: TeamCardProps) {
                 </CardDescription>
               </div>
             </div>
-            <div className="text-right">
-              <div className="flex items-center gap-1 text-accent font-semibold">
-                <Trophy size={16} weight="fill" />
-                {team.points || 0}
+            <div className="flex items-center gap-2">
+              <div className="text-right">
+                <div className="flex items-center gap-1 text-accent font-semibold">
+                  <Trophy size={16} weight="fill" />
+                  {team.points || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">points</p>
               </div>
-              <p className="text-xs text-muted-foreground">points</p>
+              {canManageTeam && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowEditTeam(true)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Gear size={16} />
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -203,6 +225,16 @@ export function TeamCard({ team, isOwner, isAdmin }: TeamCardProps) {
             setPreselectedTrack('')
           }}
           onResultAdded={handleResultAdded}
+        />
+      )}
+
+      {/* Edit Team Modal */}
+      {showEditTeam && canManageTeam && (
+        <EditTeamModal
+          team={team}
+          onClose={() => setShowEditTeam(false)}
+          onTeamUpdated={handleTeamUpdated}
+          onTeamDeleted={onTeamDeleted}
         />
       )}
     </>

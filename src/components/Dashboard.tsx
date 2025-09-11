@@ -28,6 +28,14 @@ export function Dashboard() {
     setShowCreateTeam(false)
   }
 
+  const handleTeamUpdated = () => {
+    refetch()
+  }
+
+  const handleTeamDeleted = () => {
+    refetch()
+  }
+
   const handleSignOut = async () => {
     await signOut()
     toast.success('Signed out successfully')
@@ -120,6 +128,8 @@ export function Dashboard() {
                               team={team} 
                               isOwner={true}
                               isAdmin={false}
+                              onTeamUpdated={handleTeamUpdated}
+                              onTeamDeleted={handleTeamDeleted}
                             />
                           ))}
                         </div>
@@ -139,6 +149,8 @@ export function Dashboard() {
                               team={team} 
                               isOwner={false}
                               isAdmin={team.user_role === 'admin'}
+                              onTeamUpdated={handleTeamUpdated}
+                              onTeamDeleted={handleTeamDeleted}
                             />
                           ))}
                         </div>
