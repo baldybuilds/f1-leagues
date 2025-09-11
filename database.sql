@@ -387,29 +387,11 @@ CREATE POLICY "Team creators can manage invites" ON public.team_invites FOR ALL 
   team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
 
--- Additional policies for team members to view team data
--- These policies reference teams table which is safe since teams policies don't reference team_members
-CREATE POLICY "Members can view teams they joined" ON public.teams FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.team_members WHERE team_id = teams.id AND user_id = auth.uid())
-);
+-- Note: Removed circular reference policy for team members viewing teams
+-- Team members can access team data through application-level joins instead of RLS policies
 
-CREATE POLICY "Members can view team tracks" ON public.team_tracks FOR SELECT USING (
-  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()) OR
-  EXISTS (SELECT 1 FROM public.team_members WHERE team_id = team_tracks.team_id AND user_id = auth.uid())
-);
-
-CREATE POLICY "Members can view race sessions" ON public.race_sessions FOR SELECT USING (
-  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()) OR
-  EXISTS (SELECT 1 FROM public.team_members WHERE team_id = race_sessions.team_id AND user_id = auth.uid())
-);
-
-CREATE POLICY "Members can view race results" ON public.race_results FOR SELECT USING (
-  session_id IN (
-    SELECT rs.id FROM public.race_sessions rs 
-    WHERE rs.team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()) OR
-    EXISTS (SELECT 1 FROM public.team_members WHERE team_id = rs.team_id AND user_id = auth.uid())
-  )
-);
+-- Note: Removed member access policies to prevent circular references
+-- Team members can access data through application-level joins with proper filtering
 
 -- Functions for common operations
 
@@ -529,6 +511,54 @@ CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON public.user_prof
 CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON public.teams FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 CREATE TRIGGER update_race_sessions_updated_at BEFORE UPDATE ON public.race_sessions FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 CREATE TRIGGER update_race_results_updated_at BEFORE UPDATE ON public.race_results FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+
+-- App-level functions to handle member access (avoiding RLS circular references)
+
+-- Function to check if user is member of a team
+CREATE OR REPLACE FUNCTION public.is_team_member(p_team_id UUID, p_user_id UUID DEFAULT auth.uid())
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.team_members 
+    WHERE team_id = p_team_id AND user_id = p_user_id AND status = 'accepted'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to check if user is team creator
+CREATE OR REPLACE FUNCTION public.is_team_creator(p_team_id UUID, p_user_id UUID DEFAULT auth.uid())
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.teams 
+    WHERE id = p_team_id AND created_by = p_user_id
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get teams user has access to (created or member of)
+CREATE OR REPLACE FUNCTION public.get_user_teams(p_user_id UUID DEFAULT auth.uid())
+RETURNS TABLE(team_id UUID, team_name TEXT, role TEXT) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    t.id as team_id,
+    t.name as team_name,
+    'creator' as role
+  FROM public.teams t
+  WHERE t.created_by = p_user_id
+  
+  UNION ALL
+  
+  SELECT 
+    tm.team_id,
+    t.name as team_name,
+    'member' as role
+  FROM public.team_members tm
+  JOIN public.teams t ON tm.team_id = t.id
+  WHERE tm.user_id = p_user_id AND tm.status = 'accepted';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON public.team_members(team_id);

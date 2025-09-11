@@ -29,47 +29,46 @@ export function useTeams() {
     try {
       setLoading(true)
       
-      // Get all teams with their associated data
-      const { data: allTeams, error: teamsError } = await supabase
+      // Use the new function to get teams user has access to
+      const { data: userTeams, error: userTeamsError } = await supabase
+        .rpc('get_user_teams', { p_user_id: user.id })
+
+      if (userTeamsError) throw userTeamsError
+
+      if (!userTeams || userTeams.length === 0) {
+        setTeams([])
+        setError(null)
+        return
+      }
+
+      // Get team details for teams user has access to
+      const teamIds = userTeams.map(ut => ut.team_id)
+      
+      const { data: teamsData, error: teamsError } = await supabase
         .from('teams')
         .select(`
           *,
           race_results(points),
           team_tracks(track_id)
         `)
+        .in('id', teamIds)
         .order('created_at', { ascending: false })
 
       if (teamsError) throw teamsError
 
-      // Get user's team memberships
-      const { data: memberships, error: membershipsError } = await supabase
-        .from('team_members')
-        .select('team_id, role')
-        .eq('user_id', user.id)
-
-      if (membershipsError) throw membershipsError
-
-      // Create a map of team memberships
-      const membershipMap = new Map(
-        memberships?.map(m => [m.team_id, m.role]) || []
+      // Create a map of user roles
+      const roleMap = new Map(
+        userTeams.map(ut => [ut.team_id, ut.role === 'creator' ? 'owner' : ut.role])
       )
 
-      // Process teams to calculate total points, track count, and user role
-      const processedTeams = (allTeams || [])
-        .map(team => {
-          const userRole = team.created_by === user.id 
-            ? 'owner' 
-            : membershipMap.get(team.id) || null
-
-          return {
-            ...team,
-            points: team.race_results?.reduce((sum: number, result: any) => sum + (result.points || 0), 0) || 0,
-            track_count: team.team_tracks?.length || 0,
-            user_role: userRole as 'owner' | 'admin' | 'member' | null
-          }
-        })
-        // Only show teams where user is owner or member
-        .filter(team => team.user_role !== null)
+      // Process teams to calculate total points and track count
+      const processedTeams = (teamsData || [])
+        .map(team => ({
+          ...team,
+          points: team.race_results?.reduce((sum: number, result: any) => sum + (result.points || 0), 0) || 0,
+          track_count: team.team_tracks?.length || 0,
+          user_role: roleMap.get(team.id) as 'owner' | 'admin' | 'member'
+        }))
 
       // Sort by points (highest first)
       processedTeams.sort((a, b) => (b.points || 0) - (a.points || 0))
