@@ -7,6 +7,10 @@
 -- - Functions for automatic points calculation
 -- - Triggers for data consistency
 -- - Indexes for performance
+-- - Column existence checks to prevent errors on existing databases
+--
+-- IMPORTANT: This file includes safety checks to add missing columns
+-- to existing tables, preventing "column does not exist" errors.
 --
 -- To use: Execute this entire file in your Supabase SQL editor
 
@@ -40,6 +44,23 @@ CREATE TABLE IF NOT EXISTS public.teams (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Add columns if they don't exist (for existing databases)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='teams' AND column_name='scoring_system') THEN
+    ALTER TABLE public.teams ADD COLUMN scoring_system JSONB DEFAULT '{"win": 25, "second": 18, "third": 15, "fourth": 12, "fifth": 10, "sixth": 8, "seventh": 6, "eighth": 4, "ninth": 2, "tenth": 1}'::jsonb;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='teams' AND column_name='points_for_fastest_lap') THEN
+    ALTER TABLE public.teams ADD COLUMN points_for_fastest_lap INTEGER DEFAULT 1;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='teams' AND column_name='points_for_pole_position') THEN
+    ALTER TABLE public.teams ADD COLUMN points_for_pole_position INTEGER DEFAULT 0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='teams' AND column_name='invite_code') THEN
+    ALTER TABLE public.teams ADD COLUMN invite_code TEXT UNIQUE NOT NULL DEFAULT substring(md5(random()::text), 1, 8);
+  END IF;
+END $$;
+
 -- Team members table (for invites and memberships)
 CREATE TABLE IF NOT EXISTS public.team_members (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -54,6 +75,26 @@ CREATE TABLE IF NOT EXISTS public.team_members (
   UNIQUE(team_id, car_number)
 );
 
+-- Add columns if they don't exist (for existing databases)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_members' AND column_name='role') THEN
+    ALTER TABLE public.team_members ADD COLUMN role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_members' AND column_name='driver_name') THEN
+    ALTER TABLE public.team_members ADD COLUMN driver_name TEXT NOT NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_members' AND column_name='team_name') THEN
+    ALTER TABLE public.team_members ADD COLUMN team_name TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_members' AND column_name='car_number') THEN
+    ALTER TABLE public.team_members ADD COLUMN car_number INTEGER CHECK (car_number >= 1 AND car_number <= 99);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_members' AND column_name='joined_at') THEN
+    ALTER TABLE public.team_members ADD COLUMN joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+END $$;
+
 -- F1 2025 Tracks data
 CREATE TABLE IF NOT EXISTS public.tracks (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -63,6 +104,17 @@ CREATE TABLE IF NOT EXISTS public.tracks (
   lap_record TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add columns if they don't exist (for existing databases)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tracks' AND column_name='circuit_length') THEN
+    ALTER TABLE public.tracks ADD COLUMN circuit_length DECIMAL(5,3);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tracks' AND column_name='lap_record') THEN
+    ALTER TABLE public.tracks ADD COLUMN lap_record TEXT;
+  END IF;
+END $$;
 
 -- Insert F1 2025 tracks
 INSERT INTO public.tracks (name, country, circuit_length, lap_record) VALUES
@@ -137,6 +189,38 @@ CREATE TABLE IF NOT EXISTS public.race_results (
   UNIQUE(session_id, team_member_id),
   UNIQUE(session_id, finishing_position)
 );
+
+-- Add columns if they don't exist (for existing databases)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='race_results' AND column_name='finishing_position') THEN
+    ALTER TABLE public.race_results ADD COLUMN finishing_position INTEGER NOT NULL CHECK (finishing_position >= 1);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='race_results' AND column_name='grid_position') THEN
+    ALTER TABLE public.race_results ADD COLUMN grid_position INTEGER CHECK (grid_position >= 1);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='race_results' AND column_name='fastest_lap') THEN
+    ALTER TABLE public.race_results ADD COLUMN fastest_lap BOOLEAN DEFAULT FALSE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='race_results' AND column_name='pole_position') THEN
+    ALTER TABLE public.race_results ADD COLUMN pole_position BOOLEAN DEFAULT FALSE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='race_results' AND column_name='lap_time') THEN
+    ALTER TABLE public.race_results ADD COLUMN lap_time TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='race_results' AND column_name='points_earned') THEN
+    ALTER TABLE public.race_results ADD COLUMN points_earned INTEGER DEFAULT 0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='race_results' AND column_name='dnf') THEN
+    ALTER TABLE public.race_results ADD COLUMN dnf BOOLEAN DEFAULT FALSE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='race_results' AND column_name='dnf_reason') THEN
+    ALTER TABLE public.race_results ADD COLUMN dnf_reason TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='race_results' AND column_name='penalties') THEN
+    ALTER TABLE public.race_results ADD COLUMN penalties TEXT;
+  END IF;
+END $$;
 
 -- Team invites table
 CREATE TABLE IF NOT EXISTS public.team_invites (
