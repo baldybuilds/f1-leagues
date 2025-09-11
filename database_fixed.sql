@@ -249,15 +249,72 @@ END $$;
 CREATE TABLE IF NOT EXISTS public.team_invites (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   team_id UUID REFERENCES public.teams(id) ON DELETE CASCADE NOT NULL,
-  invited_by UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL,
-  email TEXT NOT NULL,
+  inviter_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL,
+  invitee_email TEXT NOT NULL,
   invite_code TEXT UNIQUE NOT NULL DEFAULT substring(md5(random()::text), 1, 12),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'expired')),
   expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days'),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   accepted_at TIMESTAMP WITH TIME ZONE,
-  UNIQUE(team_id, email)
+  UNIQUE(team_id, invitee_email)
 );
+
+-- Add or update unique constraint for team_invites
+DO $$ 
+BEGIN
+  -- Drop old constraint if it exists
+  IF EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE table_name='team_invites' AND constraint_name='team_invites_team_id_email_key'
+  ) THEN
+    ALTER TABLE public.team_invites DROP CONSTRAINT team_invites_team_id_email_key;
+  END IF;
+  
+  -- Add new constraint if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE table_name='team_invites' AND constraint_name='team_invites_team_id_invitee_email_key'
+  ) THEN
+    ALTER TABLE public.team_invites ADD CONSTRAINT team_invites_team_id_invitee_email_key UNIQUE (team_id, invitee_email);
+  END IF;
+END $$;
+
+-- Add columns if they don't exist (for existing databases)
+DO $$ 
+BEGIN
+  -- Rename email to invitee_email if email column exists
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='email') 
+  AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='invitee_email') THEN
+    ALTER TABLE public.team_invites RENAME COLUMN email TO invitee_email;
+  END IF;
+  
+  -- Rename invited_by to inviter_id if invited_by column exists
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='invited_by') 
+  AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='inviter_id') THEN
+    ALTER TABLE public.team_invites RENAME COLUMN invited_by TO inviter_id;
+  END IF;
+  
+  -- Add missing columns
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='invitee_email') THEN
+    ALTER TABLE public.team_invites ADD COLUMN invitee_email TEXT NOT NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='inviter_id') THEN
+    ALTER TABLE public.team_invites ADD COLUMN inviter_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='updated_at') THEN
+    ALTER TABLE public.team_invites ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='invite_code') THEN
+    ALTER TABLE public.team_invites ADD COLUMN invite_code TEXT UNIQUE DEFAULT substring(md5(random()::text), 1, 12);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='expires_at') THEN
+    ALTER TABLE public.team_invites ADD COLUMN expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='team_invites' AND column_name='accepted_at') THEN
+    ALTER TABLE public.team_invites ADD COLUMN accepted_at TIMESTAMP WITH TIME ZONE;
+  END IF;
+END $$;
 
 -- Championship standings view (calculated)
 CREATE OR REPLACE VIEW public.championship_standings AS
@@ -488,11 +545,13 @@ DROP TRIGGER IF EXISTS update_user_profiles_updated_at ON public.user_profiles;
 DROP TRIGGER IF EXISTS update_teams_updated_at ON public.teams;
 DROP TRIGGER IF EXISTS update_race_sessions_updated_at ON public.race_sessions;
 DROP TRIGGER IF EXISTS update_race_results_updated_at ON public.race_results;
+DROP TRIGGER IF EXISTS update_team_invites_updated_at ON public.team_invites;
 
 CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON public.user_profiles FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON public.teams FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 CREATE TRIGGER update_race_sessions_updated_at BEFORE UPDATE ON public.race_sessions FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 CREATE TRIGGER update_race_results_updated_at BEFORE UPDATE ON public.race_results FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+CREATE TRIGGER update_team_invites_updated_at BEFORE UPDATE ON public.team_invites FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 
 -- App-level functions to handle member access
 
