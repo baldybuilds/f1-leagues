@@ -5,28 +5,69 @@
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Drop existing tables if they exist (in correct order to handle dependencies)
+-- Safely drop existing policies (must occur BEFORE dropping tables). Each block checks table existence.
+DO $$ BEGIN
+    IF to_regclass('public.teams') IS NOT NULL THEN
+        DROP POLICY IF EXISTS "Users can view teams they created or are members of" ON public.teams;
+        DROP POLICY IF EXISTS "Users can view teams they created" ON public.teams;
+        DROP POLICY IF EXISTS "Users can view teams they are members of" ON public.teams;
+        DROP POLICY IF EXISTS "Users can insert their own teams" ON public.teams;
+        DROP POLICY IF EXISTS "Team creators can update teams" ON public.teams;
+        DROP POLICY IF EXISTS "Team creators can delete teams" ON public.teams;
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF to_regclass('public.team_members') IS NOT NULL THEN
+        DROP POLICY IF EXISTS "Users can view team members for teams they have access to" ON public.team_members;
+        DROP POLICY IF EXISTS "Team creators can manage team members" ON public.team_members;
+        DROP POLICY IF EXISTS "Team creators can view all team members" ON public.team_members;
+        DROP POLICY IF EXISTS "Users can view their own team memberships" ON public.team_members;
+        DROP POLICY IF EXISTS "Team creators can insert team members" ON public.team_members;
+        DROP POLICY IF EXISTS "Team creators can update team members" ON public.team_members;
+        DROP POLICY IF EXISTS "Team creators can delete team members" ON public.team_members;
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF to_regclass('public.team_invites') IS NOT NULL THEN
+        DROP POLICY IF EXISTS "Users can view invites sent to them" ON public.team_invites;
+        DROP POLICY IF EXISTS "Team creators can view their sent invites" ON public.team_invites;
+        DROP POLICY IF EXISTS "Team creators can send invites" ON public.team_invites;
+        DROP POLICY IF EXISTS "Users can update invites sent to them" ON public.team_invites;
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF to_regclass('public.tracks') IS NOT NULL THEN
+        DROP POLICY IF EXISTS "Everyone can view tracks" ON public.tracks;
+        DROP POLICY IF EXISTS "Only authenticated users can manage tracks" ON public.tracks;
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF to_regclass('public.team_tracks') IS NOT NULL THEN
+        DROP POLICY IF EXISTS "Users can view tracks for their teams" ON public.team_tracks;
+        DROP POLICY IF EXISTS "Users can view tracks for teams they're members of" ON public.team_tracks;
+        DROP POLICY IF EXISTS "Team creators can manage team tracks" ON public.team_tracks;
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF to_regclass('public.race_results') IS NOT NULL THEN
+        DROP POLICY IF EXISTS "Users can view results for their teams" ON public.race_results;
+        DROP POLICY IF EXISTS "Users can view results for teams they're members of" ON public.race_results;
+        DROP POLICY IF EXISTS "Team creators can manage race results" ON public.race_results;
+    END IF;
+END $$;
+
+-- Now drop existing tables if they exist (order respects FKs)
 DROP TABLE IF EXISTS public.race_results CASCADE;
 DROP TABLE IF EXISTS public.team_invites CASCADE;
 DROP TABLE IF EXISTS public.team_members CASCADE;
 DROP TABLE IF EXISTS public.team_tracks CASCADE;
 DROP TABLE IF EXISTS public.tracks CASCADE;
 DROP TABLE IF EXISTS public.teams CASCADE;
-
--- Drop existing policies to prevent conflicts
-DROP POLICY IF EXISTS "Users can view teams they created or are members of" ON public.teams;
-DROP POLICY IF EXISTS "Users can view teams they created" ON public.teams;
-DROP POLICY IF EXISTS "Users can view teams they are members of" ON public.teams;
-DROP POLICY IF EXISTS "Users can insert their own teams" ON public.teams;
-DROP POLICY IF EXISTS "Team creators can update teams" ON public.teams;
-DROP POLICY IF EXISTS "Team creators can delete teams" ON public.teams;
-DROP POLICY IF EXISTS "Users can view team members for teams they have access to" ON public.team_members;
-DROP POLICY IF EXISTS "Team creators can manage team members" ON public.team_members;
-DROP POLICY IF EXISTS "Team creators can view all team members" ON public.team_members;
-DROP POLICY IF EXISTS "Users can view their own team memberships" ON public.team_members;
-DROP POLICY IF EXISTS "Team creators can insert team members" ON public.team_members;
-DROP POLICY IF EXISTS "Team creators can update team members" ON public.team_members;
-DROP POLICY IF EXISTS "Team creators can delete team members" ON public.team_members;
 
 -- Create teams table
 CREATE TABLE public.teams (
