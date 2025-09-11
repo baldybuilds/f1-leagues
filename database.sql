@@ -324,7 +324,7 @@ CREATE POLICY "Users can insert own profile" ON public.user_profiles FOR INSERT 
 DROP POLICY IF EXISTS "Anyone can view teams they're a member of" ON public.teams;
 DROP POLICY IF EXISTS "Team creators can update their teams" ON public.teams;
 DROP POLICY IF EXISTS "Authenticated users can create teams" ON public.teams;
-DROP POLICY IF EXISTS "Team admins can delete teams" ON public.teams;
+DROP POLICY IF EXISTS "Team creators can delete teams" ON public.teams;
 DROP POLICY IF EXISTS "Team creators can view their teams" ON public.teams;
 
 -- Simplified policies to avoid circular references
@@ -520,7 +520,7 @@ RETURNS BOOLEAN AS $$
 BEGIN
   RETURN EXISTS (
     SELECT 1 FROM public.team_members 
-    WHERE team_id = p_team_id AND user_id = p_user_id AND status = 'accepted'
+    WHERE team_id = p_team_id AND user_id = p_user_id
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -553,10 +553,10 @@ BEGIN
   SELECT 
     tm.team_id,
     t.name as team_name,
-    'member' as role
+    tm.role::TEXT as role
   FROM public.team_members tm
   JOIN public.teams t ON tm.team_id = t.id
-  WHERE tm.user_id = p_user_id AND tm.status = 'accepted';
+  WHERE tm.user_id = p_user_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
