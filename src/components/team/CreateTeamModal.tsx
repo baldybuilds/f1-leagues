@@ -90,7 +90,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
     setLoading(true)
 
     try {
-      // Create the team
+      // Create the team with simplified approach
       const { data: teamData, error: teamError } = await supabase
         .from('teams')
         .insert({
@@ -103,20 +103,30 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
         .select()
         .single()
 
-      if (teamError) throw teamError
+      if (teamError) {
+        console.error('Team creation error:', teamError)
+        throw teamError
+      }
 
       // Insert team-track relationships
-      const teamTrackInserts = selectedTracks.map((trackId, index) => ({
-        team_id: teamData.id,
-        track_id: trackId,
-        round_number: index + 1
-      }))
+      if (selectedTracks.length > 0) {
+        const teamTrackInserts = selectedTracks.map((trackId, index) => ({
+          team_id: teamData.id,
+          track_id: trackId,
+          round_number: index + 1
+        }))
 
-      const { error: trackError } = await supabase
-        .from('team_tracks')
-        .insert(teamTrackInserts)
+        const { error: trackError } = await supabase
+          .from('team_tracks')
+          .insert(teamTrackInserts)
 
-      if (trackError) throw trackError
+        if (trackError) {
+          console.error('Team tracks creation error:', trackError)
+          // Clean up the team if track insertion fails
+          await supabase.from('teams').delete().eq('id', teamData.id)
+          throw trackError
+        }
+      }
 
       toast.success('League created successfully!')
       onTeamCreated()

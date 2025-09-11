@@ -30,27 +30,26 @@ export function useTeams() {
     try {
       setLoading(true)
       
-      // Get teams where user is creator or member
-      const { data: teamsData, error: teamsError } = await supabase
+      // First, get teams where user is the creator
+      const { data: createdTeams, error: createdError } = await supabase
         .from('teams')
         .select(`
           *,
           team_tracks(id)
         `)
-        .or(`created_by.eq.${user.id},id.in.(select team_id from team_members where user_id.eq.${user.id})`)
+        .eq('created_by', user.id)
         .order('created_at', { ascending: false })
 
-      if (teamsError) {
-        // If tables don't exist, just set empty teams instead of throwing
-        console.warn('Teams table not found:', teamsError.message)
-        setTeams([])
-        setError(null)
-        setLoading(false)
-        return
+      if (createdError && !createdError.message.includes('relation') && !createdError.message.includes('does not exist')) {
+        throw createdError
       }
 
+      // For now, only show teams where user is creator to avoid RLS issues
+      // Later we can add member teams once RLS is properly fixed
+      const allTeams = createdTeams || []
+
       // Process teams to add track count and creator status
-      const processedTeams = (teamsData || []).map(team => ({
+      const processedTeams = allTeams.map(team => ({
         id: team.id,
         name: team.name,
         game: team.game,
@@ -83,10 +82,6 @@ export function useTeams() {
         .channel('team_changes')
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'teams' },
-          () => fetchTeams()
-        )
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'team_members' },
           () => fetchTeams()
         )
         .subscribe()
