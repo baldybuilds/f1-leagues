@@ -20,8 +20,8 @@ export function Dashboard() {
   const { invites } = useInvites()
   const [showCreateTeam, setShowCreateTeam] = useState(false)
 
-  const ownedTeams = teams.filter(team => team.user_role === 'owner')
-  const memberTeams = teams.filter(team => team.user_role === 'admin' || team.user_role === 'member')
+  const ownedTeams = teams?.filter(team => team.user_role === 'owner') || []
+  const memberTeams = teams?.filter(team => team.user_role === 'admin' || team.user_role === 'member') || []
 
   const handleTeamCreated = () => {
     refetch()
@@ -68,9 +68,9 @@ export function Dashboard() {
                 <TabsTrigger value="invites" className="flex items-center gap-2">
                   <Mail size={16} />
                   Invites
-                  {invites.length > 0 && (
+                  {(invites?.length || 0) > 0 && (
                     <span className="ml-1 bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5">
-                      {invites.length}
+                      {invites?.length || 0}
                     </span>
                   )}
                 </TabsTrigger>
@@ -91,7 +91,7 @@ export function Dashboard() {
                       <TeamCardSkeleton key={i} />
                     ))}
                   </div>
-                ) : teams.length === 0 ? (
+                ) : (teams?.length || 0) === 0 ? (
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                       <Users size={48} className="text-muted-foreground mb-4" />

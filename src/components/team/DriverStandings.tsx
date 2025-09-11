@@ -56,7 +56,7 @@ export function DriverStandings({ teamId, title = "Driver Standings" }: DriverSt
     )
   }
 
-  if (standings.length === 0) {
+  if ((standings?.length || 0) === 0) {
     return (
       <Card>
         <CardHeader>
@@ -109,7 +109,7 @@ export function DriverStandings({ teamId, title = "Driver Standings" }: DriverSt
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {standings.map((driver, index) => (
+            {standings?.map((driver, index) => (
               <div
                 key={`${driver.driver_name}-${driver.team_id}`}
                 className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"

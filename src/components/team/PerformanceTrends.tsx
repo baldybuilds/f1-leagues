@@ -19,7 +19,7 @@ interface PerformanceTrendsProps {
 }
 
 export function PerformanceTrends({ teamId, driverName, className }: PerformanceTrendsProps) {
-  const { results: raceResults, loading } = useRaceResults(teamId)
+  const { raceResults, loading } = useRaceResults({ teamId })
   const { standings } = useDriverStandings(teamId)
 
   if (loading) {
@@ -46,8 +46,8 @@ export function PerformanceTrends({ teamId, driverName, className }: Performance
 
   // Filter results by driver if specified
   const filteredResults = driverName 
-    ? raceResults.filter(r => r.driver_name === driverName)
-    : raceResults
+    ? (raceResults || []).filter(r => r.driver_name === driverName)
+    : (raceResults || [])
 
   if (filteredResults.length === 0) {
     return (

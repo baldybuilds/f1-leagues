@@ -44,7 +44,7 @@ export function InvitesList() {
     )
   }
 
-  if (invites.length === 0) {
+  if ((invites?.length || 0) === 0) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-8 text-center">
@@ -60,7 +60,7 @@ export function InvitesList() {
 
   return (
     <div className="space-y-4">
-      {invites.map((invite) => (
+      {invites?.map((invite) => (
         <Card key={invite.id} className="border-l-4 border-l-primary">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
