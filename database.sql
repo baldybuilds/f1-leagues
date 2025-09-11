@@ -100,14 +100,23 @@ CREATE TABLE IF NOT EXISTS public.tracks (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name TEXT NOT NULL,
   country TEXT NOT NULL,
+  location TEXT NOT NULL,
+  season INTEGER NOT NULL DEFAULT 2025,
   circuit_length DECIMAL(5,3),
   lap_record TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(name, country, season)
 );
 
 -- Add columns if they don't exist (for existing databases)
 DO $$ 
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tracks' AND column_name='location') THEN
+    ALTER TABLE public.tracks ADD COLUMN location TEXT NOT NULL DEFAULT '';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tracks' AND column_name='season') THEN
+    ALTER TABLE public.tracks ADD COLUMN season INTEGER NOT NULL DEFAULT 2025;
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tracks' AND column_name='circuit_length') THEN
     ALTER TABLE public.tracks ADD COLUMN circuit_length DECIMAL(5,3);
   END IF;
@@ -116,33 +125,44 @@ BEGIN
   END IF;
 END $$;
 
+-- Add unique constraint if it doesn't exist
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE table_name='tracks' AND constraint_name='tracks_name_country_season_key'
+  ) THEN
+    ALTER TABLE public.tracks ADD CONSTRAINT tracks_name_country_season_key UNIQUE (name, country, season);
+  END IF;
+END $$;
+
 -- Insert F1 2025 tracks
-INSERT INTO public.tracks (name, country, circuit_length, lap_record) VALUES
-('Bahrain International Circuit', 'Bahrain', 5.412, '1:31.447'),
-('Jeddah Corniche Circuit', 'Saudi Arabia', 6.174, '1:30.734'),
-('Albert Park Circuit', 'Australia', 5.278, '1:20.260'),
-('Suzuka International Racing Course', 'Japan', 5.807, '1:30.983'),
-('Shanghai International Circuit', 'China', 5.451, '1:32.238'),
-('Miami International Autodrome', 'United States', 5.410, '1:29.708'),
-('Autodromo Enzo e Dino Ferrari', 'Italy', 4.909, '1:15.484'),
-('Circuit de Monaco', 'Monaco', 3.337, '1:12.909'),
-('Circuit Gilles Villeneuve', 'Canada', 4.361, '1:13.078'),
-('Circuit de Barcelona-Catalunya', 'Spain', 4.675, '1:16.330'),
-('Red Bull Ring', 'Austria', 4.318, '1:05.619'),
-('Silverstone Circuit', 'United Kingdom', 5.891, '1:27.097'),
-('Hungaroring', 'Hungary', 4.381, '1:16.627'),
-('Circuit de Spa-Francorchamps', 'Belgium', 7.004, '1:41.252'),
-('Circuit Park Zandvoort', 'Netherlands', 4.259, '1:11.097'),
-('Autodromo Nazionale di Monza', 'Italy', 5.793, '1:21.046'),
-('Baku City Circuit', 'Azerbaijan', 6.003, '1:43.009'),
-('Marina Bay Street Circuit', 'Singapore', 5.063, '1:35.867'),
-('Circuit of the Americas', 'United States', 5.513, '1:36.169'),
-('Autodromo Hermanos Rodriguez', 'Mexico', 4.304, '1:17.774'),
-('Autodromo Jose Carlos Pace', 'Brazil', 4.309, '1:10.540'),
-('Las Vegas Street Circuit', 'United States', 6.201, '1:35.490'),
-('Losail International Circuit', 'Qatar', 5.380, '1:24.319'),
-('Yas Marina Circuit', 'United Arab Emirates', 5.281, '1:26.103')
-ON CONFLICT DO NOTHING;
+INSERT INTO public.tracks (name, country, location, season, circuit_length, lap_record) VALUES
+('Bahrain International Circuit', 'Bahrain', 'Sakhir', 2025, 5.412, '1:31.447'),
+('Jeddah Corniche Circuit', 'Saudi Arabia', 'Jeddah', 2025, 6.174, '1:30.734'),
+('Albert Park Circuit', 'Australia', 'Melbourne', 2025, 5.278, '1:20.260'),
+('Suzuka International Racing Course', 'Japan', 'Suzuka', 2025, 5.807, '1:30.983'),
+('Shanghai International Circuit', 'China', 'Shanghai', 2025, 5.451, '1:32.238'),
+('Miami International Autodrome', 'United States', 'Miami', 2025, 5.410, '1:29.708'),
+('Autodromo Enzo e Dino Ferrari', 'Italy', 'Imola', 2025, 4.909, '1:15.484'),
+('Circuit de Monaco', 'Monaco', 'Monte Carlo', 2025, 3.337, '1:12.909'),
+('Circuit Gilles Villeneuve', 'Canada', 'Montreal', 2025, 4.361, '1:13.078'),
+('Circuit de Barcelona-Catalunya', 'Spain', 'Barcelona', 2025, 4.675, '1:16.330'),
+('Red Bull Ring', 'Austria', 'Spielberg', 2025, 4.318, '1:05.619'),
+('Silverstone Circuit', 'United Kingdom', 'Silverstone', 2025, 5.891, '1:27.097'),
+('Hungaroring', 'Hungary', 'Budapest', 2025, 4.381, '1:16.627'),
+('Circuit de Spa-Francorchamps', 'Belgium', 'Spa', 2025, 7.004, '1:41.252'),
+('Circuit Park Zandvoort', 'Netherlands', 'Zandvoort', 2025, 4.259, '1:11.097'),
+('Autodromo Nazionale di Monza', 'Italy', 'Monza', 2025, 5.793, '1:21.046'),
+('Baku City Circuit', 'Azerbaijan', 'Baku', 2025, 6.003, '1:43.009'),
+('Marina Bay Street Circuit', 'Singapore', 'Singapore', 2025, 5.063, '1:35.867'),
+('Circuit of the Americas', 'United States', 'Austin', 2025, 5.513, '1:36.169'),
+('Autodromo Hermanos Rodriguez', 'Mexico', 'Mexico City', 2025, 4.304, '1:17.774'),
+('Autodromo Jose Carlos Pace', 'Brazil', 'São Paulo', 2025, 4.309, '1:10.540'),
+('Las Vegas Street Circuit', 'United States', 'Las Vegas', 2025, 6.201, '1:35.490'),
+('Losail International Circuit', 'Qatar', 'Doha', 2025, 5.380, '1:24.319'),
+('Yas Marina Circuit', 'United Arab Emirates', 'Abu Dhabi', 2025, 5.281, '1:26.103')
+ON CONFLICT (name, country, season) DO NOTHING;
 
 -- Team tracks (selected tracks for each team/league)
 CREATE TABLE IF NOT EXISTS public.team_tracks (
@@ -269,11 +289,18 @@ ALTER TABLE public.team_invites ENABLE ROW LEVEL SECURITY;
 -- RLS Policies
 
 -- User profiles policies
+DROP POLICY IF EXISTS "Users can view all profiles" ON public.user_profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.user_profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.user_profiles;
 CREATE POLICY "Users can view all profiles" ON public.user_profiles FOR SELECT USING (true);
 CREATE POLICY "Users can update own profile" ON public.user_profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Users can insert own profile" ON public.user_profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Teams policies
+DROP POLICY IF EXISTS "Anyone can view teams they're a member of" ON public.teams;
+DROP POLICY IF EXISTS "Team creators can update their teams" ON public.teams;
+DROP POLICY IF EXISTS "Authenticated users can create teams" ON public.teams;
+DROP POLICY IF EXISTS "Team admins can delete teams" ON public.teams;
 CREATE POLICY "Anyone can view teams they're a member of" ON public.teams FOR SELECT USING (
   id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
 );
@@ -285,6 +312,9 @@ CREATE POLICY "Team admins can delete teams" ON public.teams FOR DELETE USING (
 );
 
 -- Team members policies
+DROP POLICY IF EXISTS "Team members can view team memberships" ON public.team_members;
+DROP POLICY IF EXISTS "Team admins can manage memberships" ON public.team_members;
+DROP POLICY IF EXISTS "Users can join teams" ON public.team_members;
 CREATE POLICY "Team members can view team memberships" ON public.team_members FOR SELECT USING (
   team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
 );
@@ -298,9 +328,12 @@ CREATE POLICY "Team admins can manage memberships" ON public.team_members FOR AL
 CREATE POLICY "Users can join teams" ON public.team_members FOR INSERT WITH CHECK (user_id = auth.uid());
 
 -- Tracks policies
+DROP POLICY IF EXISTS "Anyone can view tracks" ON public.tracks;
 CREATE POLICY "Anyone can view tracks" ON public.tracks FOR SELECT USING (true);
 
 -- Team tracks policies
+DROP POLICY IF EXISTS "Team members can view team tracks" ON public.team_tracks;
+DROP POLICY IF EXISTS "Team admins can manage team tracks" ON public.team_tracks;
 CREATE POLICY "Team members can view team tracks" ON public.team_tracks FOR SELECT USING (
   team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
 );
@@ -313,6 +346,8 @@ CREATE POLICY "Team admins can manage team tracks" ON public.team_tracks FOR ALL
 );
 
 -- Race sessions policies
+DROP POLICY IF EXISTS "Team members can view race sessions" ON public.race_sessions;
+DROP POLICY IF EXISTS "Team admins can manage race sessions" ON public.race_sessions;
 CREATE POLICY "Team members can view race sessions" ON public.race_sessions FOR SELECT USING (
   team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
 );
@@ -325,6 +360,8 @@ CREATE POLICY "Team admins can manage race sessions" ON public.race_sessions FOR
 );
 
 -- Race results policies
+DROP POLICY IF EXISTS "Team members can view race results" ON public.race_results;
+DROP POLICY IF EXISTS "Team admins can manage race results" ON public.race_results;
 CREATE POLICY "Team members can view race results" ON public.race_results FOR SELECT USING (
   session_id IN (
     SELECT rs.id FROM public.race_sessions rs 
@@ -342,6 +379,8 @@ CREATE POLICY "Team admins can manage race results" ON public.race_results FOR A
 );
 
 -- Team invites policies
+DROP POLICY IF EXISTS "Team admins can view team invites" ON public.team_invites;
+DROP POLICY IF EXISTS "Team admins can manage invites" ON public.team_invites;
 CREATE POLICY "Team admins can view team invites" ON public.team_invites FOR SELECT USING (
   team_id IN (
     SELECT t.id FROM public.teams t 
@@ -466,6 +505,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Add update triggers for tables with updated_at columns
+DROP TRIGGER IF EXISTS update_user_profiles_updated_at ON public.user_profiles;
+DROP TRIGGER IF EXISTS update_teams_updated_at ON public.teams;
+DROP TRIGGER IF EXISTS update_race_sessions_updated_at ON public.race_sessions;
+DROP TRIGGER IF EXISTS update_race_results_updated_at ON public.race_results;
+
 CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON public.user_profiles FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON public.teams FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 CREATE TRIGGER update_race_sessions_updated_at BEFORE UPDATE ON public.race_sessions FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
