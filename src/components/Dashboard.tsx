@@ -57,8 +57,8 @@ export function Dashboard() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+        <div className={`grid gap-8 ${(teams?.length || 0) > 0 ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
+          <div className={(teams?.length || 0) > 0 ? "lg:col-span-2" : ""}>
             <Tabs defaultValue="teams" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="teams" className="flex items-center gap-2">
@@ -155,10 +155,12 @@ export function Dashboard() {
             </Tabs>
           </div>
 
-          <div>
-            <h2 className="text-2xl font-semibold mb-6">Global Driver Standings</h2>
-            <DriverStandings title="All Drivers" />
-          </div>
+          {(teams?.length || 0) > 0 && (
+            <div>
+              <h2 className="text-2xl font-semibold mb-6">Global Driver Standings</h2>
+              <DriverStandings title="All Drivers" />
+            </div>
+          )}
         </div>
       </div>
 
