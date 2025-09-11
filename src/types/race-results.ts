@@ -43,3 +43,42 @@ export function calculatePoints(position: number | null, fastestLap: boolean, dn
   
   return basePoints + fastestLapBonus
 }
+
+export interface DriverStanding {
+  driver_name: string
+  team_id: string
+  team_name: string
+  total_points: number
+  races_completed: number
+  wins: number
+  podiums: number
+  fastest_laps: number
+  dnfs: number
+  average_position: number
+  best_position: number
+  worst_position: number
+}
+
+export interface DriverPerformance {
+  driver_name: string
+  race_results: Array<{
+    track_id: string
+    track_name: string
+    race_date: string | null
+    position: number | null
+    points: number
+    fastest_lap: boolean
+    dnf: boolean
+  }>
+  season_stats: {
+    total_points: number
+    races_completed: number
+    wins: number
+    podiums: number
+    fastest_laps: number
+    dnfs: number
+    average_position: number
+    consistency_rating: number
+    point_scoring_rate: number
+  }
+}

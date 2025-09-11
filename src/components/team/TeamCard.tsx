@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { RaceResults } from './RaceResults'
 import { RaceCalendar } from './RaceCalendar'
+import { DriverStandings } from './DriverStandings'
+import { AnalyticsSummary } from './AnalyticsSummary'
 import { AddRaceResultModal } from './AddRaceResultModal'
 import { Flag, Trophy, ChevronDown, ChevronUp, CalendarBlank, GameController } from '@phosphor-icons/react'
 
@@ -136,15 +138,26 @@ export function TeamCard({ team, isOwner }: TeamCardProps) {
             {isOwner && (
               <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
                 <CollapsibleContent className="space-y-4">
-                  <Tabs defaultValue="results" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="results">Race Results</TabsTrigger>
-                      <TabsTrigger value="calendar">Race Calendar</TabsTrigger>
+                  <Tabs defaultValue="analytics" className="w-full">
+                    <TabsList className="grid w-full grid-cols-4">
+                      <TabsTrigger value="analytics">Analytics</TabsTrigger>
+                      <TabsTrigger value="results">Results</TabsTrigger>
+                      <TabsTrigger value="standings">Drivers</TabsTrigger>
+                      <TabsTrigger value="calendar">Calendar</TabsTrigger>
                     </TabsList>
+                    <TabsContent value="analytics" className="mt-4">
+                      <AnalyticsSummary teamId={team.id} />
+                    </TabsContent>
                     <TabsContent value="results" className="mt-4">
                       <RaceResults
                         teamId={team.id}
                         onAddResult={() => setShowAddResult(true)}
+                      />
+                    </TabsContent>
+                    <TabsContent value="standings" className="mt-4">
+                      <DriverStandings 
+                        teamId={team.id}
+                        title="Team Driver Standings"
                       />
                     </TabsContent>
                     <TabsContent value="calendar" className="mt-4">

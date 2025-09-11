@@ -4,9 +4,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useAuth } from '@/contexts/AuthContext'
 import { CreateTeamModal } from './team/CreateTeamModal'
 import { TeamCard } from './team/TeamCard'
-import { LeagueTable } from './league/LeagueTable'
+import { DriverStandings } from './team/DriverStandings'
 import { useTeams } from '@/hooks/useTeams'
-import { TeamCardSkeleton, LeagueTableSkeleton } from '@/components/ui/loading-skeletons'
+import { TeamCardSkeleton } from '@/components/ui/loading-skeletons'
 import { toast } from 'sonner'
 import { Trophy, Users, Flag, Plus, SignOut } from '@phosphor-icons/react'
 
@@ -91,12 +91,8 @@ export function Dashboard() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-semibold mb-6">Global Standings</h2>
-            {loading ? (
-              <LeagueTableSkeleton />
-            ) : (
-              <LeagueTable teams={teams} />
-            )}
+            <h2 className="text-2xl font-semibold mb-6">Global Driver Standings</h2>
+            <DriverStandings title="All Drivers" />
           </div>
         </div>
       </div>
