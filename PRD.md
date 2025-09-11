@@ -19,12 +19,31 @@ A comprehensive platform for managing Formula 1 fantasy leagues among friends wi
 - **Progression**: Homepage → Sign Up/Login → Dashboard → Team Creation
 - **Success criteria**: Users can register, login, and access personalized dashboard
 
-### Team Management
-- **Functionality**: Create and customize F1 teams with driver selections and team branding
-- **Purpose**: Core fantasy league functionality
-- **Trigger**: Post-authentication dashboard action
-- **Progression**: Dashboard → Create Team → Configure Settings → Save Team → View in League
-- **Success criteria**: Teams are created, stored, and displayed in league tables
+### Team Management & Collaboration
+- **Functionality**: Create and customize F1 teams with driver selections, team branding, and collaborative team management
+- **Purpose**: Core fantasy league functionality with social team building
+- **Trigger**: Post-authentication dashboard action or invite acceptance
+- **Progression**: Dashboard → Create Team → Configure Settings → Invite Members → Manage Team → View in League
+- **Features**:
+  - Team creation with game selection (F1 24/F1 25)
+  - Track selection from 2025 F1 calendar
+  - Member invitation system via email
+  - Role-based permissions (Owner, Admin, Member)
+  - Race result tracking and analytics
+- **Success criteria**: Teams are created, members can be invited and join, results can be tracked collaboratively
+
+### Invite System & Member Management
+- **Functionality**: Invite-only team access with role-based permissions
+- **Purpose**: Controlled team membership and collaborative race management
+- **Trigger**: Team owner/admin initiates invite from team management
+- **Progression**: Invite Send → Email Notification → Accept/Decline → Team Membership → Collaborative Management
+- **Features**:
+  - Email-based invitation system
+  - Pending/Accepted/Declined invite tracking
+  - Role management (Admin can manage members, Members can view)
+  - Only invited users can see and join specific teams
+  - Real-time invite notifications and management
+- **Success criteria**: Invites are sent successfully, users can accept/decline, and join teams with appropriate permissions
 
 ### League Tables & Standings
 - **Functionality**: Global leaderboards showing team rankings and points

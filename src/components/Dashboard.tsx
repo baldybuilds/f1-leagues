@@ -1,21 +1,27 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/contexts/AuthContext'
 import { CreateTeamModal } from './team/CreateTeamModal'
 import { TeamCard } from './team/TeamCard'
 import { DriverStandings } from './team/DriverStandings'
+import { InvitesList } from './team/InvitesList'
 import { useTeams } from '@/hooks/useTeams'
+import { useInvites } from '@/hooks/useInvites'
 import { TeamCardSkeleton } from '@/components/ui/loading-skeletons'
 import { toast } from 'sonner'
-import { Trophy, Users, Flag, Plus, SignOut } from '@phosphor-icons/react'
+import { Trophy, Users, Flag, Plus, SignOut, Mail, Crown } from '@phosphor-icons/react'
 
 export function Dashboard() {
   const { user, signOut } = useAuth()
   const { teams, loading, refetch } = useTeams()
+  const { invites } = useInvites()
   const [showCreateTeam, setShowCreateTeam] = useState(false)
 
-  const userTeams = teams.filter(team => team.owner_id === user?.id)
+  const ownedTeams = teams.filter(team => team.user_role === 'owner')
+  const memberTeams = teams.filter(team => team.user_role === 'admin' || team.user_role === 'member')
 
   const handleTeamCreated = () => {
     refetch()
@@ -53,41 +59,100 @@ export function Dashboard() {
       <div className="container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold">Your Teams</h2>
-              <Button onClick={() => setShowCreateTeam(true)}>
-                <Plus size={16} className="mr-2" />
-                Create Team
-              </Button>
-            </div>
+            <Tabs defaultValue="teams" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="teams" className="flex items-center gap-2">
+                  <Users size={16} />
+                  My Teams
+                </TabsTrigger>
+                <TabsTrigger value="invites" className="flex items-center gap-2">
+                  <Mail size={16} />
+                  Invites
+                  {invites.length > 0 && (
+                    <span className="ml-1 bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5">
+                      {invites.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </TabsList>
 
-            {loading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <TeamCardSkeleton key={i} />
-                ))}
-              </div>
-            ) : userTeams.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                  <Users size={48} className="text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No teams yet</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Create your first F1 team to start competing
-                  </p>
+              <TabsContent value="teams" className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-semibold">Your Teams</h2>
                   <Button onClick={() => setShowCreateTeam(true)}>
                     <Plus size={16} className="mr-2" />
-                    Create Your First Team
+                    Create Team
                   </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4">
-                {userTeams.map((team) => (
-                  <TeamCard key={team.id} team={team} isOwner={true} />
-                ))}
-              </div>
-            )}
+                </div>
+
+                {loading ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <TeamCardSkeleton key={i} />
+                    ))}
+                  </div>
+                ) : teams.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                      <Users size={48} className="text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">No teams yet</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Create your first F1 team or accept an invite to start competing
+                      </p>
+                      <Button onClick={() => setShowCreateTeam(true)}>
+                        <Plus size={16} className="mr-2" />
+                        Create Your First Team
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-6">
+                    {ownedTeams.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Crown size={20} className="text-primary" />
+                          Teams You Own ({ownedTeams.length})
+                        </h3>
+                        <div className="grid gap-4">
+                          {ownedTeams.map((team) => (
+                            <TeamCard 
+                              key={team.id} 
+                              team={team} 
+                              isOwner={true}
+                              isAdmin={false}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {memberTeams.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Users size={20} className="text-accent" />
+                          Teams You're In ({memberTeams.length})
+                        </h3>
+                        <div className="grid gap-4">
+                          {memberTeams.map((team) => (
+                            <TeamCard 
+                              key={team.id} 
+                              team={team} 
+                              isOwner={false}
+                              isAdmin={team.user_role === 'admin'}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="invites" className="space-y-6">
+                <h2 className="text-2xl font-semibold">Team Invites</h2>
+                <InvitesList />
+              </TabsContent>
+            </Tabs>
           </div>
 
           <div>

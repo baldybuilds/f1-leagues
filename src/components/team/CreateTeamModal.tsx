@@ -117,6 +117,17 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
 
       if (trackError) throw trackError
 
+      // Add the owner as an admin team member
+      const { error: memberError } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: teamData.id,
+          user_id: user.id,
+          role: 'admin'
+        })
+
+      if (memberError) throw memberError
+
       toast.success('Team created successfully!')
       onTeamCreated()
     } catch (error: any) {

@@ -10,7 +10,7 @@ import type { RaceResult } from '@/types/race-results'
 
 interface RaceResultsProps {
   teamId: string
-  onAddResult: () => void
+  onAddResult?: () => void
 }
 
 export function RaceResults({ teamId, onAddResult }: RaceResultsProps) {
@@ -57,10 +57,12 @@ export function RaceResults({ teamId, onAddResult }: RaceResultsProps) {
               </Badge>
             )}
           </CardTitle>
-          <Button size="sm" onClick={onAddResult}>
-            <Plus size={16} className="mr-2" />
-            Add Result
-          </Button>
+          {onAddResult && (
+            <Button size="sm" onClick={onAddResult}>
+              <Plus size={16} className="mr-2" />
+              Add Result
+            </Button>
+          )}
         </div>
       </CardHeader>
       
@@ -70,12 +72,17 @@ export function RaceResults({ teamId, onAddResult }: RaceResultsProps) {
             <Trophy size={48} className="text-muted-foreground mx-auto mb-4" />
             <h3 className="font-semibold mb-2">No race results yet</h3>
             <p className="text-muted-foreground mb-4">
-              Start adding your race results to track your progress
+              {onAddResult 
+                ? "Start adding your race results to track your progress"
+                : "No race results have been added to this team yet"
+              }
             </p>
-            <Button onClick={onAddResult}>
-              <Plus size={16} className="mr-2" />
-              Add First Result
-            </Button>
+            {onAddResult && (
+              <Button onClick={onAddResult}>
+                <Plus size={16} className="mr-2" />
+                Add First Result
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-3">

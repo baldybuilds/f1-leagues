@@ -46,6 +46,151 @@ export type Database = {
           updated_at?: string
         }
       }
+      team_invites: {
+        Row: {
+          id: string
+          team_id: string
+          inviter_id: string
+          invitee_email: string
+          status: 'pending' | 'accepted' | 'declined'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          inviter_id: string
+          invitee_email: string
+          status?: 'pending' | 'accepted' | 'declined'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          inviter_id?: string
+          invitee_email?: string
+          status?: 'pending' | 'accepted' | 'declined'
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      team_members: {
+        Row: {
+          id: string
+          team_id: string
+          user_id: string
+          role: 'admin' | 'member'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          user_id: string
+          role?: 'admin' | 'member'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          user_id?: string
+          role?: 'admin' | 'member'
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      tracks: {
+        Row: {
+          id: string
+          name: string
+          country: string
+          location: string
+          season: number
+          round_number: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          country: string
+          location: string
+          season?: number
+          round_number: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          country?: string
+          location?: string
+          season?: number
+          round_number?: number
+          created_at?: string
+        }
+      }
+      team_tracks: {
+        Row: {
+          id: string
+          team_id: string
+          track_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          track_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          track_id?: string
+          created_at?: string
+        }
+      }
+      race_results: {
+        Row: {
+          id: string
+          team_id: string
+          track_id: string
+          driver_name: string
+          position: number | null
+          points: number
+          fastest_lap: boolean
+          dnf: boolean
+          race_date: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          track_id: string
+          driver_name: string
+          position?: number | null
+          points?: number
+          fastest_lap?: boolean
+          dnf?: boolean
+          race_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          track_id?: string
+          driver_name?: string
+          position?: number | null
+          points?: number
+          fastest_lap?: boolean
+          dnf?: boolean
+          race_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       tracks: {
         Row: {
           id: string

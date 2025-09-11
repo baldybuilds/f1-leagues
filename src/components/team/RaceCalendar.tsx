@@ -9,7 +9,7 @@ import type { RaceResult } from '@/types/race-results'
 
 interface RaceCalendarProps {
   teamId: string
-  onAddResult: (trackId: string) => void
+  onAddResult?: (trackId: string) => void
 }
 
 export function RaceCalendar({ teamId, onAddResult }: RaceCalendarProps) {
@@ -103,14 +103,16 @@ export function RaceCalendar({ teamId, onAddResult }: RaceCalendarProps) {
                       </p>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onAddResult(track.id)}
-                  >
-                    <Plus size={14} className="mr-1" />
-                    Add Result
-                  </Button>
+                  {onAddResult && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onAddResult(track.id)}
+                    >
+                      <Plus size={14} className="mr-1" />
+                      Add Result
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>

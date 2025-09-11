@@ -8,8 +8,9 @@ import { RaceResults } from './RaceResults'
 import { RaceCalendar } from './RaceCalendar'
 import { DriverStandings } from './DriverStandings'
 import { AnalyticsSummary } from './AnalyticsSummary'
+import { TeamMembers } from './TeamMembers'
 import { AddRaceResultModal } from './AddRaceResultModal'
-import { Flag, Trophy, ChevronDown, ChevronUp, CalendarBlank, GameController } from '@phosphor-icons/react'
+import { Flag, Trophy, ChevronDown, ChevronUp, CalendarBlank, GameController, Crown, Shield, User, UserPlus } from '@phosphor-icons/react'
 
 interface Team {
   id: string
@@ -22,14 +23,16 @@ interface Team {
   updated_at: string
   points?: number
   track_count?: number
+  user_role?: 'owner' | 'admin' | 'member' | null
 }
 
 interface TeamCardProps {
   team: Team
   isOwner: boolean
+  isAdmin: boolean
 }
 
-export function TeamCard({ team, isOwner }: TeamCardProps) {
+export function TeamCard({ team, isOwner, isAdmin }: TeamCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [showAddResult, setShowAddResult] = useState(false)
   const [preselectedTrack, setPreselectedTrack] = useState<string>('')
@@ -42,6 +45,7 @@ export function TeamCard({ team, isOwner }: TeamCardProps) {
   const selectedGame = team.game ? F1_GAMES.find(g => g.value === team.game) : null
   const hasDateRange = team.start_date && team.end_date
   const tracksCount = team.track_count || 0
+  const canManageTeam = isOwner || isAdmin
 
   const handleResultAdded = () => {
     setShowAddResult(false)
@@ -52,6 +56,18 @@ export function TeamCard({ team, isOwner }: TeamCardProps) {
   const handleAddResultFromCalendar = (trackId: string) => {
     setPreselectedTrack(trackId)
     setShowAddResult(true)
+  }
+
+  const getRoleIcon = () => {
+    if (isOwner) return <Crown size={12} className="text-primary" />
+    if (isAdmin) return <Shield size={12} className="text-accent" />
+    return <User size={12} className="text-muted-foreground" />
+  }
+
+  const getRoleText = () => {
+    if (isOwner) return 'Owner'
+    if (isAdmin) return 'Admin'
+    return 'Member'
   }
 
   return (
@@ -66,12 +82,10 @@ export function TeamCard({ team, isOwner }: TeamCardProps) {
               <div>
                 <CardTitle className="text-lg">{team.name}</CardTitle>
                 <CardDescription className="flex items-center gap-1">
-                  {isOwner && (
-                    <Badge variant="secondary" className="text-xs">
-                      <Flag size={12} className="mr-1" />
-                      Your Team
-                    </Badge>
-                  )}
+                  <Badge variant={isOwner ? "default" : "secondary"} className="text-xs">
+                    {getRoleIcon()}
+                    <span className="ml-1">{getRoleText()}</span>
+                  </Badge>
                 </CardDescription>
               </div>
             </div>
@@ -91,25 +105,23 @@ export function TeamCard({ team, isOwner }: TeamCardProps) {
               <div className="text-muted-foreground">
                 Created {new Date(team.created_at).toLocaleDateString()}
               </div>
-              {isOwner && (
-                <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      {isExpanded ? (
-                        <>
-                          <ChevronUp size={16} className="mr-1" />
-                          Hide Details
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown size={16} className="mr-1" />
-                          Show Details
-                        </>
-                      )}
-                    </Button>
-                  </CollapsibleTrigger>
-                </Collapsible>
-              )}
+              <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    {isExpanded ? (
+                      <>
+                        <ChevronUp size={16} className="mr-1" />
+                        Hide Details
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown size={16} className="mr-1" />
+                        Show Details
+                      </>
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+              </Collapsible>
             </div>
 
             {/* Team Info */}
@@ -135,47 +147,54 @@ export function TeamCard({ team, isOwner }: TeamCardProps) {
             </div>
 
             {/* Expandable Content */}
-            {isOwner && (
-              <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-                <CollapsibleContent className="space-y-4">
-                  <Tabs defaultValue="analytics" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4">
-                      <TabsTrigger value="analytics">Analytics</TabsTrigger>
-                      <TabsTrigger value="results">Results</TabsTrigger>
-                      <TabsTrigger value="standings">Drivers</TabsTrigger>
-                      <TabsTrigger value="calendar">Calendar</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="analytics" className="mt-4">
-                      <AnalyticsSummary teamId={team.id} />
-                    </TabsContent>
-                    <TabsContent value="results" className="mt-4">
-                      <RaceResults
-                        teamId={team.id}
-                        onAddResult={() => setShowAddResult(true)}
-                      />
-                    </TabsContent>
-                    <TabsContent value="standings" className="mt-4">
-                      <DriverStandings 
-                        teamId={team.id}
-                        title="Team Driver Standings"
-                      />
-                    </TabsContent>
-                    <TabsContent value="calendar" className="mt-4">
-                      <RaceCalendar
-                        teamId={team.id}
-                        onAddResult={handleAddResultFromCalendar}
-                      />
-                    </TabsContent>
-                  </Tabs>
-                </CollapsibleContent>
-              </Collapsible>
-            )}
+            <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+              <CollapsibleContent className="space-y-4">
+                <Tabs defaultValue="analytics" className="w-full">
+                  <TabsList className="grid w-full grid-cols-5">
+                    <TabsTrigger value="analytics">Analytics</TabsTrigger>
+                    <TabsTrigger value="results">Results</TabsTrigger>
+                    <TabsTrigger value="standings">Drivers</TabsTrigger>
+                    <TabsTrigger value="members">Members</TabsTrigger>
+                    <TabsTrigger value="calendar">Calendar</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="analytics" className="mt-4">
+                    <AnalyticsSummary teamId={team.id} />
+                  </TabsContent>
+                  <TabsContent value="results" className="mt-4">
+                    <RaceResults
+                      teamId={team.id}
+                      onAddResult={canManageTeam ? () => setShowAddResult(true) : undefined}
+                    />
+                  </TabsContent>
+                  <TabsContent value="standings" className="mt-4">
+                    <DriverStandings 
+                      teamId={team.id}
+                      title="Team Driver Standings"
+                    />
+                  </TabsContent>
+                  <TabsContent value="members" className="mt-4">
+                    <TeamMembers
+                      teamId={team.id}
+                      teamName={team.name}
+                      isOwner={isOwner}
+                      isAdmin={isAdmin}
+                    />
+                  </TabsContent>
+                  <TabsContent value="calendar" className="mt-4">
+                    <RaceCalendar
+                      teamId={team.id}
+                      onAddResult={canManageTeam ? handleAddResultFromCalendar : undefined}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </CardContent>
       </Card>
 
       {/* Add Race Result Modal */}
-      {showAddResult && (
+      {showAddResult && canManageTeam && (
         <AddRaceResultModal
           teamId={team.id}
           preselectedTrack={preselectedTrack}
