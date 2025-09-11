@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS public.race_results (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   session_id UUID REFERENCES public.race_sessions(id) ON DELETE CASCADE NOT NULL,
   team_member_id UUID REFERENCES public.team_members(id) ON DELETE CASCADE NOT NULL,
-  finishing_position INTEGER NOT NULL CHECK (finishing_position >= 1),
+  finishing_position INTEGER CHECK (finishing_position >= 1),
   grid_position INTEGER CHECK (grid_position >= 1),
   fastest_lap BOOLEAN DEFAULT FALSE,
   pole_position BOOLEAN DEFAULT FALSE,
@@ -206,15 +206,29 @@ CREATE TABLE IF NOT EXISTS public.race_results (
   penalties TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(session_id, team_member_id),
-  UNIQUE(session_id, finishing_position)
+  UNIQUE(session_id, team_member_id)
 );
 
 -- Add columns if they don't exist (for existing databases)
 DO $$ 
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='race_results' AND column_name='finishing_position') THEN
-    ALTER TABLE public.race_results ADD COLUMN finishing_position INTEGER NOT NULL CHECK (finishing_position >= 1);
+    ALTER TABLE public.race_results ADD COLUMN finishing_position INTEGER CHECK (finishing_position >= 1);
+    -- Update any existing null values to 99 (a safe default for unfinished positions)
+    UPDATE public.race_results SET finishing_position = 99 WHERE finishing_position IS NULL;
+    -- Now add the NOT NULL constraint
+    ALTER TABLE public.race_results ALTER COLUMN finishing_position SET NOT NULL;
+  ELSE
+    -- Handle existing column that might have null values
+    UPDATE public.race_results SET finishing_position = 99 WHERE finishing_position IS NULL;
+    -- Try to add NOT NULL constraint if it doesn't exist
+    BEGIN
+      ALTER TABLE public.race_results ALTER COLUMN finishing_position SET NOT NULL;
+    EXCEPTION
+      WHEN OTHERS THEN
+        -- Constraint might already exist, ignore error
+        NULL;
+    END;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='race_results' AND column_name='grid_position') THEN
     ALTER TABLE public.race_results ADD COLUMN grid_position INTEGER CHECK (grid_position >= 1);
@@ -239,6 +253,16 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='race_results' AND column_name='penalties') THEN
     ALTER TABLE public.race_results ADD COLUMN penalties TEXT;
+  END IF;
+
+  -- Add unique constraint for session_id and finishing_position if it doesn't exist
+  -- Only for non-DNF results (since DNF drivers can have the same "finishing" position)
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE table_name='race_results' AND constraint_name='race_results_session_finishing_unique'
+  ) THEN
+    ALTER TABLE public.race_results ADD CONSTRAINT race_results_session_finishing_unique 
+      UNIQUE (session_id, finishing_position) DEFERRABLE INITIALLY DEFERRED;
   END IF;
 END $$;
 
