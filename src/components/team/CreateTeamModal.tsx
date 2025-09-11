@@ -22,7 +22,7 @@ interface Track {
   name: string
   country: string
   location: string
-  year: number
+  season: number
 }
 
 export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps) {
@@ -42,7 +42,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
         const { data, error } = await supabase
           .from('tracks')
           .select('*')
-          .eq('year', 2025)
+          .eq('season', 2025)
           .order('name')
 
         if (error) {
@@ -95,7 +95,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
         .from('teams')
         .insert({
           name: teamName,
-          game_version: selectedGame,
+          game: selectedGame,
           start_date: startDate,
           end_date: endDate,
           created_by: user.id,

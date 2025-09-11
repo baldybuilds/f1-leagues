@@ -69,7 +69,7 @@ export function InvitesList() {
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                   <div className="flex items-center gap-1">
                     <GameController size={14} />
-                    {invite.team.game_version}
+                    {invite.team.game}
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar size={14} />

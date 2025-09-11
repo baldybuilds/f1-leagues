@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 interface Team {
   id: string
   name: string
-  game_version: 'F1 24' | 'F1 25'
+  game: 'F1 24' | 'F1 25'
   start_date: string
   end_date: string
   created_by: string
@@ -53,7 +53,7 @@ export function useTeams() {
       const processedTeams = (teamsData || []).map(team => ({
         id: team.id,
         name: team.name,
-        game_version: team.game_version,
+        game: team.game,
         start_date: team.start_date,
         end_date: team.end_date,
         created_by: team.created_by,

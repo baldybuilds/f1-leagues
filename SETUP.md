@@ -1,62 +1,83 @@
-# F1 League Manager Setup Guide
+# QualiPal F1 League Manager - Setup Guide
 
-Your F1 League Manager app is ready to run! Here's how to get it working:
+## Quick Start
 
-## 🚀 Quick Start
+1. **Set up your Supabase project:**
+   - Go to [supabase.com](https://supabase.com) and create a new project
+   - Copy your project URL and anon key
 
-1. **Database Setup** (Required)
-   - Open your Supabase project dashboard
-   - Go to the SQL Editor
-   - Copy and paste the entire content of `complete-database-setup.sql`
-   - Run the SQL to create all necessary tables and data
+2. **Configure environment variables:**
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` and add your Supabase credentials:
+   ```
+   VITE_SUPABASE_URL=your-supabase-project-url
+   VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+   ```
 
-2. **Environment Variables** (Already configured)
-   - Your `.env` file is already set up with your Supabase credentials
-   - No changes needed unless you want to use a different Supabase project
+3. **Set up the database:**
+   - In your Supabase dashboard, go to the SQL Editor
+   - Copy and paste the entire contents of `database-setup.sql`
+   - Run the SQL script
 
-3. **Start the Development Server**
+4. **Start the development server:**
    ```bash
    npm run dev
    ```
 
-## 🏁 What's Included
+## Database Schema
 
-- **Authentication**: Sign up/sign in with Supabase Auth
-- **League Management**: Create F1 leagues with custom settings
-- **Team Invites**: Invite friends to join your leagues
-- **Track Selection**: Choose from all 2025 F1 tracks
-- **Modern UI**: Beautiful, responsive design with F1 theming
+The application uses the following main tables:
 
-## 🔧 Database Schema
+- **profiles**: User profiles that extend Supabase auth.users
+- **teams**: F1 leagues created by users
+- **tracks**: Available F1 tracks for 2025 season
+- **team_tracks**: Junction table linking teams to selected tracks
+- **team_members**: Members of each team/league
+- **team_invites**: Pending invitations to join teams
+- **race_results**: Race results for each track/member combination
 
-The app uses these main tables:
-- `teams` - League information
-- `team_members` - Users in each league
-- `team_invites` - Pending invitations
-- `tracks` - F1 circuit data (pre-populated with 2025 tracks)
-- `race_results` - Race outcome tracking
-- `team_tracks` - Selected tracks per league
+## Features
 
-## 🛠️ Troubleshooting
+- **User Authentication**: Sign up and sign in with email/password
+- **League Management**: Create and manage F1 leagues
+- **Track Selection**: Choose from 2025 F1 season tracks
+- **Team Invitations**: Invite other users to join your leagues
+- **Race Results**: Track race results and standings
+- **Responsive Design**: Modern UI that works on all devices
 
-**White screen on load?**
-- Make sure you've run the SQL setup in Supabase
-- Check browser console for errors
-- Verify your Supabase URL and keys in `.env`
+## Troubleshooting
 
-**Can't create leagues?**
-- Ensure all database tables are created
-- Check RLS policies are applied correctly
-- Verify you're signed in
+### White Screen Issues
+- Ensure your `.env` file has the correct Supabase credentials
+- Check that the database setup SQL has been run successfully
+- Verify that RLS policies are enabled and configured correctly
 
-## 📝 Next Steps
+### Authentication Issues
+- Make sure the `profiles` table and trigger are set up correctly
+- Check that the `handle_new_user()` function is working
+- Verify email confirmation settings in Supabase auth settings
 
-Once the database is set up, you can:
-1. Sign up for an account
-2. Create your first F1 league
-3. Invite friends to join
-4. Start tracking race results!
+### Database Connection Issues
+- Confirm your Supabase project is active
+- Check that your API keys haven't expired
+- Ensure RLS is enabled on all tables
 
----
+## Development
 
-Need help? Check the browser console for detailed error messages.
+The app is built with:
+- **React 19** with TypeScript
+- **Vite** for fast development
+- **Tailwind CSS** for styling
+- **Shadcn/ui** for components
+- **Supabase** for backend and auth
+- **Phosphor Icons** for icons
+
+## Support
+
+If you encounter issues:
+1. Check the browser console for errors
+2. Verify your Supabase setup
+3. Ensure all database tables and policies are created
+4. Check that your environment variables are correct

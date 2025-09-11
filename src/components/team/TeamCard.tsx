@@ -9,7 +9,7 @@ import { Flag, ChevronDown, ChevronUp, CalendarBlank, GameController, Crown, Use
 interface Team {
   id: string
   name: string
-  game_version: 'F1 24' | 'F1 25'
+  game: 'F1 24' | 'F1 25'
   start_date: string
   end_date: string
   created_by: string
@@ -43,7 +43,7 @@ export function TeamCard({ team, isOwner }: TeamCardProps) {
   }
 
   const getGameLabel = () => {
-    return team.game_version
+    return team.game
   }
 
   return (

@@ -16,7 +16,7 @@ interface InviteWithTeam extends TeamInvite {
   team: {
     id: string
     name: string
-    game_version: 'F1 24' | 'F1 25'
+    game: 'F1 24' | 'F1 25'
     start_date: string
     end_date: string
     created_by: string
@@ -45,7 +45,7 @@ export function useInvites() {
           team:teams(
             id,
             name,
-            game_version,
+            game,
             start_date,
             end_date,
             created_by
