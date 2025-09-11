@@ -19,7 +19,7 @@ export interface RaceResultInput {
   dnf: boolean
 }
 
-// F1 points system
+// F1 points system (default)
 export const F1_POINTS = {
   1: 25,
   2: 18,
@@ -35,11 +35,21 @@ export const F1_POINTS = {
 
 export const FASTEST_LAP_POINTS = 1
 
-export function calculatePoints(position: number | null, fastestLap: boolean, dnf: boolean): number {
+export function calculatePoints(
+  position: number | null, 
+  fastestLap: boolean, 
+  dnf: boolean,
+  scoringSystem?: any
+): number {
   if (dnf || position === null) return 0
   
-  const basePoints = F1_POINTS[position as keyof typeof F1_POINTS] || 0
-  const fastestLapBonus = fastestLap && position <= 10 ? FASTEST_LAP_POINTS : 0
+  // Use custom scoring system if provided, otherwise fall back to default F1 system
+  const positionPoints = scoringSystem?.position_points || F1_POINTS
+  const fastestLapPoints = scoringSystem?.fastest_lap_points || FASTEST_LAP_POINTS
+  const fastestLapMinPosition = scoringSystem?.fastest_lap_required_position || 10
+  
+  const basePoints = positionPoints[position] || 0
+  const fastestLapBonus = fastestLap && position <= fastestLapMinPosition ? fastestLapPoints : 0
   
   return basePoints + fastestLapBonus
 }

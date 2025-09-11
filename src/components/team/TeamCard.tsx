@@ -11,7 +11,8 @@ import { AnalyticsSummary } from './AnalyticsSummary'
 import { TeamMembers } from './TeamMembers'
 import { AddRaceResultModal } from './AddRaceResultModal'
 import { EditTeamModal } from './EditTeamModal'
-import { Flag, Trophy, ChevronDown, ChevronUp, CalendarBlank, GameController, Crown, Shield, User, UserPlus, Gear } from '@phosphor-icons/react'
+import { LeagueSettingsPage } from './LeagueSettingsPage'
+import { Flag, Trophy, ChevronDown, ChevronUp, CalendarBlank, GameController, Crown, Shield, User, UserPlus, Gear, Sliders } from '@phosphor-icons/react'
 
 interface Team {
   id: string
@@ -40,6 +41,7 @@ export function TeamCard({ team, isOwner, isAdmin, onTeamUpdated, onTeamDeleted 
   const [isExpanded, setIsExpanded] = useState(false)
   const [showAddResult, setShowAddResult] = useState(false)
   const [showEditTeam, setShowEditTeam] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [preselectedTrack, setPreselectedTrack] = useState<string>('')
 
   const F1_GAMES = [
@@ -82,7 +84,16 @@ export function TeamCard({ team, isOwner, isAdmin, onTeamUpdated, onTeamDeleted 
 
   return (
     <>
-      <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+      {showSettings ? (
+        <LeagueSettingsPage
+          team={team}
+          isOwner={isOwner}
+          isAdmin={isAdmin}
+          onBack={() => setShowSettings(false)}
+        />
+      ) : (
+        <>
+          <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -108,14 +119,24 @@ export function TeamCard({ team, isOwner, isAdmin, onTeamUpdated, onTeamDeleted 
                 <p className="text-xs text-muted-foreground">points</p>
               </div>
               {canManageTeam && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowEditTeam(true)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Gear size={16} />
-                </Button>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowSettings(true)}
+                    title="League Settings"
+                  >
+                    <Sliders size={16} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowEditTeam(true)}
+                    title="Edit Team"
+                  >
+                    <Gear size={16} />
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -213,29 +234,31 @@ export function TeamCard({ team, isOwner, isAdmin, onTeamUpdated, onTeamDeleted 
             </Collapsible>
           </div>
         </CardContent>
-      </Card>
+        </Card>
 
-      {/* Add Race Result Modal */}
-      {showAddResult && canManageTeam && (
-        <AddRaceResultModal
-          teamId={team.id}
-          preselectedTrack={preselectedTrack}
-          onClose={() => {
-            setShowAddResult(false)
-            setPreselectedTrack('')
-          }}
-          onResultAdded={handleResultAdded}
-        />
-      )}
+        {/* Add Race Result Modal */}
+        {showAddResult && canManageTeam && (
+          <AddRaceResultModal
+            teamId={team.id}
+            preselectedTrack={preselectedTrack}
+            onClose={() => {
+              setShowAddResult(false)
+              setPreselectedTrack('')
+            }}
+            onResultAdded={handleResultAdded}
+          />
+        )}
 
-      {/* Edit Team Modal */}
-      {showEditTeam && canManageTeam && (
-        <EditTeamModal
-          team={team}
-          onClose={() => setShowEditTeam(false)}
-          onTeamUpdated={handleTeamUpdated}
-          onTeamDeleted={onTeamDeleted}
-        />
+        {/* Edit Team Modal */}
+        {showEditTeam && canManageTeam && (
+          <EditTeamModal
+            team={team}
+            onClose={() => setShowEditTeam(false)}
+            onTeamUpdated={handleTeamUpdated}
+            onTeamDeleted={onTeamDeleted}
+          />
+        )}
+        </>
       )}
     </>
   )

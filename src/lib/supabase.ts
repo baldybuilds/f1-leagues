@@ -191,92 +191,28 @@ export type Database = {
           updated_at?: string
         }
       }
-      tracks: {
-        Row: {
-          id: string
-          name: string
-          country: string
-          location: string
-          season: number
-          round_number: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          country: string
-          location: string
-          season?: number
-          round_number: number
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          country?: string
-          location?: string
-          season?: number
-          round_number?: number
-          created_at?: string
-        }
-      }
-      team_tracks: {
+      league_settings: {
         Row: {
           id: string
           team_id: string
-          track_id: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          team_id: string
-          track_id: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          team_id?: string
-          track_id?: string
-          created_at?: string
-        }
-      }
-      race_results: {
-        Row: {
-          id: string
-          team_id: string
-          track_id: string
-          driver_name: string
-          position: number | null
-          points: number
-          fastest_lap: boolean
-          dnf: boolean
-          race_date: string | null
+          scoring_system: any // JSON field
+          rules: any // JSON field
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           team_id: string
-          track_id: string
-          driver_name: string
-          position?: number | null
-          points?: number
-          fastest_lap?: boolean
-          dnf?: boolean
-          race_date?: string | null
+          scoring_system: any
+          rules: any
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           team_id?: string
-          track_id?: string
-          driver_name?: string
-          position?: number | null
-          points?: number
-          fastest_lap?: boolean
-          dnf?: boolean
-          race_date?: string | null
+          scoring_system?: any
+          rules?: any
           created_at?: string
           updated_at?: string
         }
