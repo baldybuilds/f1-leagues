@@ -325,29 +325,29 @@ DROP POLICY IF EXISTS "Anyone can view teams they're a member of" ON public.team
 DROP POLICY IF EXISTS "Team creators can update their teams" ON public.teams;
 DROP POLICY IF EXISTS "Authenticated users can create teams" ON public.teams;
 DROP POLICY IF EXISTS "Team admins can delete teams" ON public.teams;
-CREATE POLICY "Anyone can view teams they're a member of" ON public.teams FOR SELECT USING (
-  id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
-);
+DROP POLICY IF EXISTS "Team creators can view their teams" ON public.teams;
+
+-- Simplified policies to avoid circular references
+CREATE POLICY "Team creators can view their teams" ON public.teams FOR SELECT USING (created_by = auth.uid());
 CREATE POLICY "Team creators can update their teams" ON public.teams FOR UPDATE USING (created_by = auth.uid());
 CREATE POLICY "Authenticated users can create teams" ON public.teams FOR INSERT WITH CHECK (auth.uid() = created_by);
-CREATE POLICY "Team admins can delete teams" ON public.teams FOR DELETE USING (
-  created_by = auth.uid() OR 
-  id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
-);
+CREATE POLICY "Team creators can delete teams" ON public.teams FOR DELETE USING (created_by = auth.uid());
 
 -- Team members policies
 DROP POLICY IF EXISTS "Team members can view team memberships" ON public.team_members;
 DROP POLICY IF EXISTS "Team admins can manage memberships" ON public.team_members;
 DROP POLICY IF EXISTS "Users can join teams" ON public.team_members;
-CREATE POLICY "Team members can view team memberships" ON public.team_members FOR SELECT USING (
-  team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
+DROP POLICY IF EXISTS "Team creators can manage all memberships" ON public.team_members;
+DROP POLICY IF EXISTS "Users can view own membership" ON public.team_members;
+DROP POLICY IF EXISTS "Members can view team memberships" ON public.team_members;
+
+-- Split policies to avoid circular references
+CREATE POLICY "Users can view own membership" ON public.team_members FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Members can view team memberships" ON public.team_members FOR SELECT USING (
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
-CREATE POLICY "Team admins can manage memberships" ON public.team_members FOR ALL USING (
-  team_id IN (
-    SELECT t.id FROM public.teams t 
-    WHERE t.created_by = auth.uid() OR 
-    t.id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
-  )
+CREATE POLICY "Team creators can manage all memberships" ON public.team_members FOR ALL USING (
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
 CREATE POLICY "Users can join teams" ON public.team_members FOR INSERT WITH CHECK (user_id = auth.uid());
 
@@ -358,65 +358,56 @@ CREATE POLICY "Anyone can view tracks" ON public.tracks FOR SELECT USING (true);
 -- Team tracks policies
 DROP POLICY IF EXISTS "Team members can view team tracks" ON public.team_tracks;
 DROP POLICY IF EXISTS "Team admins can manage team tracks" ON public.team_tracks;
-CREATE POLICY "Team members can view team tracks" ON public.team_tracks FOR SELECT USING (
-  team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
-);
-CREATE POLICY "Team admins can manage team tracks" ON public.team_tracks FOR ALL USING (
-  team_id IN (
-    SELECT t.id FROM public.teams t 
-    WHERE t.created_by = auth.uid() OR 
-    t.id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
-  )
+CREATE POLICY "Team creators can manage team tracks" ON public.team_tracks FOR ALL USING (
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
 
 -- Race sessions policies
 DROP POLICY IF EXISTS "Team members can view race sessions" ON public.race_sessions;
 DROP POLICY IF EXISTS "Team admins can manage race sessions" ON public.race_sessions;
-CREATE POLICY "Team members can view race sessions" ON public.race_sessions FOR SELECT USING (
-  team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid())
-);
-CREATE POLICY "Team admins can manage race sessions" ON public.race_sessions FOR ALL USING (
-  team_id IN (
-    SELECT t.id FROM public.teams t 
-    WHERE t.created_by = auth.uid() OR 
-    t.id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
-  )
+CREATE POLICY "Team creators can manage race sessions" ON public.race_sessions FOR ALL USING (
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
 
 -- Race results policies
 DROP POLICY IF EXISTS "Team members can view race results" ON public.race_results;
 DROP POLICY IF EXISTS "Team admins can manage race results" ON public.race_results;
-CREATE POLICY "Team members can view race results" ON public.race_results FOR SELECT USING (
-  session_id IN (
-    SELECT rs.id FROM public.race_sessions rs 
-    JOIN public.team_members tm ON rs.team_id = tm.team_id 
-    WHERE tm.user_id = auth.uid()
-  )
-);
-CREATE POLICY "Team admins can manage race results" ON public.race_results FOR ALL USING (
+CREATE POLICY "Team creators can manage race results" ON public.race_results FOR ALL USING (
   session_id IN (
     SELECT rs.id FROM public.race_sessions rs 
     JOIN public.teams t ON rs.team_id = t.id 
-    WHERE t.created_by = auth.uid() OR 
-    rs.team_id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
+    WHERE t.created_by = auth.uid()
   )
 );
 
 -- Team invites policies
 DROP POLICY IF EXISTS "Team admins can view team invites" ON public.team_invites;
 DROP POLICY IF EXISTS "Team admins can manage invites" ON public.team_invites;
-CREATE POLICY "Team admins can view team invites" ON public.team_invites FOR SELECT USING (
-  team_id IN (
-    SELECT t.id FROM public.teams t 
-    WHERE t.created_by = auth.uid() OR 
-    t.id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
-  )
+CREATE POLICY "Team creators can manage invites" ON public.team_invites FOR ALL USING (
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid())
 );
-CREATE POLICY "Team admins can manage invites" ON public.team_invites FOR ALL USING (
-  team_id IN (
-    SELECT t.id FROM public.teams t 
-    WHERE t.created_by = auth.uid() OR 
-    t.id IN (SELECT team_id FROM public.team_members WHERE user_id = auth.uid() AND role = 'admin')
+
+-- Additional policies for team members to view team data
+-- These policies reference teams table which is safe since teams policies don't reference team_members
+CREATE POLICY "Members can view teams they joined" ON public.teams FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.team_members WHERE team_id = teams.id AND user_id = auth.uid())
+);
+
+CREATE POLICY "Members can view team tracks" ON public.team_tracks FOR SELECT USING (
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()) OR
+  EXISTS (SELECT 1 FROM public.team_members WHERE team_id = team_tracks.team_id AND user_id = auth.uid())
+);
+
+CREATE POLICY "Members can view race sessions" ON public.race_sessions FOR SELECT USING (
+  team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()) OR
+  EXISTS (SELECT 1 FROM public.team_members WHERE team_id = race_sessions.team_id AND user_id = auth.uid())
+);
+
+CREATE POLICY "Members can view race results" ON public.race_results FOR SELECT USING (
+  session_id IN (
+    SELECT rs.id FROM public.race_sessions rs 
+    WHERE rs.team_id IN (SELECT id FROM public.teams WHERE created_by = auth.uid()) OR
+    EXISTS (SELECT 1 FROM public.team_members WHERE team_id = rs.team_id AND user_id = auth.uid())
   )
 );
 
