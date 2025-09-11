@@ -10,11 +10,10 @@ import type { RaceResult } from '@/types/race-results'
 
 interface RaceResultsProps {
   teamId: string
-  selectedTracks: string[]
   onAddResult: () => void
 }
 
-export function RaceResults({ teamId, selectedTracks, onAddResult }: RaceResultsProps) {
+export function RaceResults({ teamId, onAddResult }: RaceResultsProps) {
   const { raceResults, loading } = useRaceResults({ teamId })
 
   if (loading) {

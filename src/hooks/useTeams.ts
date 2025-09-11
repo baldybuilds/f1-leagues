@@ -4,14 +4,15 @@ import { supabase } from '@/lib/supabase'
 interface Team {
   id: string
   name: string
-  color: string
-  points: number
-  user_id: string
+  game: string
+  start_date: string
+  end_date: string
+  owner_id: string
   created_at: string
-  game?: string
-  start_date?: string
-  end_date?: string
-  selected_tracks?: string[]
+  updated_at: string
+  // These will be calculated/joined fields
+  points?: number
+  track_count?: number
 }
 
 export function useTeams() {
@@ -22,16 +23,34 @@ export function useTeams() {
   const fetchTeams = async () => {
     try {
       setLoading(true)
+      
+      // Get teams with calculated points from race results
       const { data, error } = await supabase
         .from('teams')
-        .select('*')
-        .order('points', { ascending: false })
+        .select(`
+          *,
+          race_results(points),
+          team_tracks(track_id)
+        `)
+        .order('created_at', { ascending: false })
 
       if (error) throw error
-      setTeams(data || [])
+
+      // Process teams to calculate total points and track count
+      const processedTeams = (data || []).map(team => ({
+        ...team,
+        points: team.race_results?.reduce((sum: number, result: any) => sum + (result.points || 0), 0) || 0,
+        track_count: team.team_tracks?.length || 0
+      }))
+
+      // Sort by points (highest first)
+      processedTeams.sort((a, b) => (b.points || 0) - (a.points || 0))
+
+      setTeams(processedTeams)
       setError(null)
     } catch (err: any) {
       setError(err.message)
+      console.error('Error fetching teams:', err)
     } finally {
       setLoading(false)
     }
@@ -40,23 +59,7 @@ export function useTeams() {
   // Function to recalculate team points based on race results
   const updateTeamPoints = async (teamId: string) => {
     try {
-      const { data: raceResults, error: raceError } = await supabase
-        .from('race_results')
-        .select('points')
-        .eq('team_id', teamId)
-
-      if (raceError) throw raceError
-
-      const totalPoints = raceResults?.reduce((sum, result) => sum + result.points, 0) || 0
-
-      const { error: updateError } = await supabase
-        .from('teams')
-        .update({ points: totalPoints })
-        .eq('id', teamId)
-
-      if (updateError) throw updateError
-
-      // Refresh teams after points update
+      // Just refetch teams since points are calculated dynamically
       fetchTeams()
     } catch (err: any) {
       console.error('Error updating team points:', err.message)

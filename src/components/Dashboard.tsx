@@ -15,7 +15,7 @@ export function Dashboard() {
   const { teams, loading, refetch } = useTeams()
   const [showCreateTeam, setShowCreateTeam] = useState(false)
 
-  const userTeams = teams.filter(team => team.user_id === user?.id)
+  const userTeams = teams.filter(team => team.owner_id === user?.id)
 
   const handleTeamCreated = () => {
     refetch()

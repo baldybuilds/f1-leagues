@@ -8,26 +8,26 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { useRaceResults } from '@/hooks/useRaceResults'
 import { calculatePoints } from '@/types/race-results'
-import { F1_2025_TRACKS } from '@/data/f1-tracks'
+import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { Trophy, Flag, X } from '@phosphor-icons/react'
 
 interface AddRaceResultModalProps {
   teamId: string
-  selectedTracks: string[]
   preselectedTrack?: string
   onClose: () => void
   onResultAdded: () => void
 }
 
-export function AddRaceResultModal({ teamId, selectedTracks, preselectedTrack, onClose, onResultAdded }: AddRaceResultModalProps) {
+export function AddRaceResultModal({ teamId, preselectedTrack, onClose, onResultAdded }: AddRaceResultModalProps) {
   const { addRaceResult } = useRaceResults()
   const [trackId, setTrackId] = useState(preselectedTrack || '')
   const [raceDate, setRaceDate] = useState('')
   const [position, setPosition] = useState('')
   const [fastestLap, setFastestLap] = useState(false)
   const [dnf, setDnf] = useState(false)
-  const [dnfReason, setDnfReason] = useState('')
+  const [driverName, setDriverName] = useState('')
+  const [availableTracks, setAvailableTracks] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
   // Set preselected track when prop changes
@@ -37,29 +37,47 @@ export function AddRaceResultModal({ teamId, selectedTracks, preselectedTrack, o
     }
   }, [preselectedTrack])
 
-  const availableTracks = F1_2025_TRACKS.filter(track => 
-    selectedTracks.includes(track.id)
-  )
+  // Fetch available tracks for this team
+  useEffect(() => {
+    const fetchTeamTracks = async () => {
+      const { data, error } = await supabase
+        .from('team_tracks')
+        .select(`
+          track_id,
+          tracks (*)
+        `)
+        .eq('team_id', teamId)
 
-  const selectedTrack = F1_2025_TRACKS.find(track => track.id === trackId)
+      if (error) {
+        console.error('Error fetching team tracks:', error)
+        return
+      }
+
+      setAvailableTracks(data?.map(tt => tt.tracks) || [])
+    }
+
+    fetchTeamTracks()
+  }, [teamId])
+
+  const selectedTrack = availableTracks.find(track => track.id === trackId)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
-      const positionNum = parseInt(position)
+      const positionNum = dnf ? null : parseInt(position)
       const points = calculatePoints(positionNum, fastestLap, dnf)
 
       await addRaceResult({
         team_id: teamId,
         track_id: trackId,
-        race_date: raceDate,
+        driver_name: driverName,
+        race_date: raceDate || null,
         position: positionNum,
         points,
         fastest_lap: fastestLap,
         dnf,
-        dnf_reason: dnf ? dnfReason : undefined
       })
 
       toast.success('Race result added successfully!')
@@ -71,7 +89,7 @@ export function AddRaceResultModal({ teamId, selectedTracks, preselectedTrack, o
     }
   }
 
-  const previewPoints = position ? calculatePoints(parseInt(position), fastestLap, dnf) : 0
+  const previewPoints = position ? calculatePoints(dnf ? null : parseInt(position), fastestLap, dnf) : 0
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -101,7 +119,6 @@ export function AddRaceResultModal({ teamId, selectedTracks, preselectedTrack, o
                   {availableTracks.map((track) => (
                     <SelectItem key={track.id} value={track.id}>
                       <div className="flex items-center gap-2">
-                        <span>{track.flag}</span>
                         <span>{track.name}</span>
                       </div>
                     </SelectItem>
@@ -110,9 +127,22 @@ export function AddRaceResultModal({ teamId, selectedTracks, preselectedTrack, o
               </Select>
               {selectedTrack && (
                 <p className="text-xs text-muted-foreground">
-                  {selectedTrack.country} • {selectedTrack.length}km • {selectedTrack.laps} laps
+                  {selectedTrack.location}, {selectedTrack.country} • Round {selectedTrack.round_number}
                 </p>
               )}
+            </div>
+
+            {/* Driver Name */}
+            <div className="space-y-2">
+              <Label htmlFor="driver-name">Driver Name</Label>
+              <Input
+                id="driver-name"
+                type="text"
+                value={driverName}
+                onChange={(e) => setDriverName(e.target.value)}
+                placeholder="Enter driver name"
+                required
+              />
             </div>
 
             {/* Race Date */}
@@ -176,20 +206,6 @@ export function AddRaceResultModal({ teamId, selectedTracks, preselectedTrack, o
               </div>
             )}
 
-            {/* DNF Reason */}
-            {dnf && (
-              <div className="space-y-2">
-                <Label htmlFor="dnf-reason">DNF Reason</Label>
-                <Textarea
-                  id="dnf-reason"
-                  placeholder="e.g., Engine failure, Collision, etc."
-                  value={dnfReason}
-                  onChange={(e) => setDnfReason(e.target.value)}
-                  maxLength={200}
-                />
-              </div>
-            )}
-
             {/* Points Preview */}
             <div className="bg-muted p-3 rounded-lg">
               <div className="flex items-center justify-between">
@@ -207,7 +223,7 @@ export function AddRaceResultModal({ teamId, selectedTracks, preselectedTrack, o
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={loading || !trackId || !raceDate || !position}
+              disabled={loading || !trackId || !driverName || (!dnf && !position)}
             >
               {loading ? 'Adding Result...' : 'Add Race Result'}
             </Button>

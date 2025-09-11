@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -10,34 +10,57 @@ import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
-import { Flag, Palette, CalendarBlank, GameController, MapPin } from '@phosphor-icons/react'
-import { F1_2025_TRACKS, F1_GAMES, type F1Track } from '@/data/f1-tracks'
+import { Flag, CalendarBlank, GameController, MapPin } from '@phosphor-icons/react'
 
 interface CreateTeamModalProps {
   onClose: () => void
   onTeamCreated: () => void
 }
 
-const teamColors = [
-  '#ef4444', // Red
-  '#3b82f6', // Blue
-  '#10b981', // Green
-  '#f59e0b', // Yellow
-  '#8b5cf6', // Purple
-  '#ec4899', // Pink
-  '#06b6d4', // Cyan
-  '#84cc16', // Lime
-]
+interface Track {
+  id: string
+  name: string
+  country: string
+  location: string
+  season: number
+  round_number: number
+}
+
+const F1_GAMES = [
+  { value: 'F1 24', label: 'F1 24' },
+  { value: 'F1 25', label: 'F1 25' }
+] as const
 
 export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps) {
   const { user } = useAuth()
   const [teamName, setTeamName] = useState('')
-  const [selectedColor, setSelectedColor] = useState(teamColors[0])
   const [selectedGame, setSelectedGame] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedTracks, setSelectedTracks] = useState<string[]>([])
+  const [availableTracks, setAvailableTracks] = useState<Track[]>([])
   const [loading, setLoading] = useState(false)
+
+  // Fetch available tracks from database
+  useEffect(() => {
+    const fetchTracks = async () => {
+      const { data, error } = await supabase
+        .from('tracks')
+        .select('*')
+        .eq('season', 2025)
+        .order('round_number')
+
+      if (error) {
+        console.error('Error fetching tracks:', error)
+        toast.error('Failed to load tracks')
+        return
+      }
+
+      setAvailableTracks(data || [])
+    }
+
+    fetchTracks()
+  }, [])
 
   const handleTrackToggle = (trackId: string) => {
     setSelectedTracks(prev => 
@@ -48,7 +71,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
   }
 
   const selectAllTracks = () => {
-    setSelectedTracks(F1_2025_TRACKS.map(track => track.id))
+    setSelectedTracks(availableTracks.map(track => track.id))
   }
 
   const clearAllTracks = () => {
@@ -67,24 +90,37 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
     setLoading(true)
 
     try {
-      const { error } = await supabase
+      // Create the team
+      const { data: teamData, error: teamError } = await supabase
         .from('teams')
         .insert({
           name: teamName,
-          color: selectedColor,
-          user_id: user.id,
-          points: 0,
           game: selectedGame,
           start_date: startDate,
           end_date: endDate,
-          selected_tracks: selectedTracks,
+          owner_id: user.id,
         })
+        .select()
+        .single()
 
-      if (error) throw error
+      if (teamError) throw teamError
+
+      // Insert team-track relationships
+      const teamTrackInserts = selectedTracks.map(trackId => ({
+        team_id: teamData.id,
+        track_id: trackId
+      }))
+
+      const { error: trackError } = await supabase
+        .from('team_tracks')
+        .insert(teamTrackInserts)
+
+      if (trackError) throw trackError
 
       toast.success('Team created successfully!')
       onTeamCreated()
     } catch (error: any) {
+      console.error('Error creating team:', error)
       toast.error(error.message || 'Failed to create team')
     } finally {
       setLoading(false)
@@ -173,24 +209,12 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
 
                 {/* Team Color */}
                 <div className="space-y-3">
-                  <Label className="flex items-center gap-2">
-                    <Palette size={16} />
-                    Team Color
-                  </Label>
-                  <div className="grid grid-cols-4 gap-3">
-                    {teamColors.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        className={`w-12 h-12 rounded-lg border-2 transition-all ${
-                          selectedColor === color
-                            ? 'border-ring scale-110'
-                            : 'border-border hover:scale-105'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        onClick={() => setSelectedColor(color)}
-                      />
-                    ))}
+                  <Label>Team Information</Label>
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      Your F1 league will be created with the selected tracks and date range. 
+                      You can add race results and track standings once the league is created.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -200,7 +224,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-2">
                     <MapPin size={16} />
-                    Select Tracks ({selectedTracks.length}/24)
+                    Select Tracks ({selectedTracks.length}/{availableTracks.length})
                   </Label>
                   <div className="flex gap-2">
                     <Button
@@ -226,7 +250,7 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
 
                 <ScrollArea className="h-80 border rounded-lg p-4">
                   <div className="space-y-3">
-                    {F1_2025_TRACKS.map((track) => (
+                    {availableTracks.map((track) => (
                       <div
                         key={track.id}
                         className="flex items-center space-x-3 p-2 hover:bg-muted/50 rounded-md"
@@ -240,11 +264,10 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
                           htmlFor={track.id}
                           className="flex-1 cursor-pointer flex items-center gap-2 text-sm"
                         >
-                          <span className="text-lg">{track.flag}</span>
                           <div className="flex-1">
                             <div className="font-medium">{track.name}</div>
                             <div className="text-xs text-muted-foreground">
-                              {track.country} • {track.length}km • {track.laps} laps
+                              {track.location}, {track.country} • Round {track.round_number}
                             </div>
                           </div>
                         </Label>
@@ -263,10 +286,6 @@ export function CreateTeamModal({ onClose, onTeamCreated }: CreateTeamModalProps
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
-                    <div
-                      className="w-6 h-6 rounded-full"
-                      style={{ backgroundColor: selectedColor }}
-                    />
                     <span className="font-medium">{teamName || 'Your Team Name'}</span>
                   </div>
                   <div className="text-muted-foreground">

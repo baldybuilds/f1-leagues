@@ -18,41 +18,81 @@ export type Database = {
         Row: {
           id: string
           name: string
-          user_id: string
-          color: string
-          points: number
-          game: string | null
-          start_date: string | null
-          end_date: string | null
-          selected_tracks: string[] | null
+          game: string
+          start_date: string
+          end_date: string
+          owner_id: string
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           name: string
-          user_id: string
-          color?: string
-          points?: number
-          game?: string | null
-          start_date?: string | null
-          end_date?: string | null
-          selected_tracks?: string[] | null
+          game: string
+          start_date: string
+          end_date: string
+          owner_id: string
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           name?: string
-          user_id?: string
-          color?: string
-          points?: number
-          game?: string | null
-          start_date?: string | null
-          end_date?: string | null
-          selected_tracks?: string[] | null
+          game?: string
+          start_date?: string
+          end_date?: string
+          owner_id?: string
           created_at?: string
           updated_at?: string
+        }
+      }
+      tracks: {
+        Row: {
+          id: string
+          name: string
+          country: string
+          location: string
+          season: number
+          round_number: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          country: string
+          location: string
+          season?: number
+          round_number: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          country?: string
+          location?: string
+          season?: number
+          round_number?: number
+          created_at?: string
+        }
+      }
+      team_tracks: {
+        Row: {
+          id: string
+          team_id: string
+          track_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          track_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          track_id?: string
+          created_at?: string
         }
       }
       race_results: {
@@ -60,12 +100,12 @@ export type Database = {
           id: string
           team_id: string
           track_id: string
-          race_date: string
-          position: number
+          driver_name: string
+          position: number | null
           points: number
           fastest_lap: boolean
           dnf: boolean
-          dnf_reason: string | null
+          race_date: string | null
           created_at: string
           updated_at: string
         }
@@ -73,12 +113,12 @@ export type Database = {
           id?: string
           team_id: string
           track_id: string
-          race_date: string
-          position: number
-          points: number
+          driver_name: string
+          position?: number | null
+          points?: number
           fastest_lap?: boolean
           dnf?: boolean
-          dnf_reason?: string | null
+          race_date?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -86,38 +126,12 @@ export type Database = {
           id?: string
           team_id?: string
           track_id?: string
-          race_date?: string
-          position?: number
+          driver_name?: string
+          position?: number | null
           points?: number
           fastest_lap?: boolean
           dnf?: boolean
-          dnf_reason?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      leagues: {
-        Row: {
-          id: string
-          name: string
-          description: string | null
-          created_by: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          description?: string | null
-          created_by: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          description?: string | null
-          created_by?: string
+          race_date?: string | null
           created_at?: string
           updated_at?: string
         }

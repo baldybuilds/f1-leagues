@@ -5,10 +5,14 @@ import { Trophy, Medal, Award } from '@phosphor-icons/react'
 interface Team {
   id: string
   name: string
-  color: string
-  points: number
-  user_id: string
+  game: string
+  start_date: string
+  end_date: string
+  owner_id: string
   created_at: string
+  updated_at: string
+  points?: number
+  track_count?: number
 }
 
 interface LeagueTableProps {
@@ -75,17 +79,14 @@ export function LeagueTable({ teams }: LeagueTableProps) {
                     <div className="w-8 flex justify-center">
                       {getRankIcon(position)}
                     </div>
-                    <div
-                      className="w-4 h-4 rounded-full border"
-                      style={{ backgroundColor: team.color }}
-                    />
+                    <div className="w-4 h-4 rounded-full bg-primary/20 border-2 border-primary/30" />
                     <div>
                       <p className="font-medium text-sm">{team.name}</p>
                       {getRankBadge(position)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-accent">{team.points}</p>
+                    <p className="font-semibold text-accent">{team.points || 0}</p>
                     <p className="text-xs text-muted-foreground">pts</p>
                   </div>
                 </div>

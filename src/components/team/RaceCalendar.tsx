@@ -1,20 +1,42 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useRaceResults } from '@/hooks/useRaceResults'
-import { F1_2025_TRACKS } from '@/data/f1-tracks'
+import { supabase } from '@/lib/supabase'
 import { CalendarBlank, Flag, Trophy, Plus } from '@phosphor-icons/react'
 import type { RaceResult } from '@/types/race-results'
 
 interface RaceCalendarProps {
   teamId: string
-  selectedTracks: string[]
   onAddResult: (trackId: string) => void
 }
 
-export function RaceCalendar({ teamId, selectedTracks, onAddResult }: RaceCalendarProps) {
+export function RaceCalendar({ teamId, onAddResult }: RaceCalendarProps) {
   const { raceResults, loading } = useRaceResults({ teamId })
+  const [teamTracks, setTeamTracks] = useState<any[]>([])
+
+  // Fetch team tracks from database
+  useEffect(() => {
+    const fetchTeamTracks = async () => {
+      const { data, error } = await supabase
+        .from('team_tracks')
+        .select(`
+          track_id,
+          tracks (*)
+        `)
+        .eq('team_id', teamId)
+
+      if (error) {
+        console.error('Error fetching team tracks:', error)
+        return
+      }
+
+      setTeamTracks(data?.map(tt => tt.tracks) || [])
+    }
+
+    fetchTeamTracks()
+  }, [teamId])
 
   if (loading) {
     return (
@@ -36,7 +58,7 @@ export function RaceCalendar({ teamId, selectedTracks, onAddResult }: RaceCalend
     )
   }
 
-  const tracks = F1_2025_TRACKS.filter(track => selectedTracks.includes(track.id))
+  const tracks = teamTracks || []
   
   // Create a map of track results for quick lookup
   const trackResults = new Map<string, RaceResult>()
